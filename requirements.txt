@@ -1,0 +1,33 @@
+# Analisis y procesamiento de datos
+numpy
+pandas
+polars
+pyarrow
+requests
+
+# Machine Learning
+scikit-learn
+
+# MLOps
+mlflow
+
+# Visualizacion
+matplotlib
+
+# Exploracion y notebooks
+ipython
+jupyterlab
+notebook
+
+# Herramientas de desarrollo
+loguru
+tqdm
+typer
+python-dotenv
+
+# Pruebas y calidad de codigo
+pytest
+ruff
+
+# Instalacion del paquete local
+-e .
