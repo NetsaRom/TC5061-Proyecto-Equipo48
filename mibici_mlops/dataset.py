@@ -9,10 +9,58 @@ from urllib.parse import urljoin
 
 from loguru import logger
 
-from mibici_mlops.config import (PROCESSED_DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR, PERIODOS_DATOS, DESCARGAR_CATALOGOS, FECHA_INICIO, FECHA_FIN, generar_periodos,)
+from mibici_mlops.config import (PROCESSED_DATA_DIR, DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR, PERIODOS_DATOS, DESCARGAR_CATALOGOS, FECHA_INICIO, FECHA_FIN, generar_periodos,)
+
+import hashlib
+import json
+from datetime import datetime, timezone
 
 app = typer.Typer()
 
+def calcular_sha256(ruta_archivo: Path) -> str:
+    """Calcula el hash SHA-256 de un archivo."""
+
+    sha256 = hashlib.sha256()
+
+    with open(ruta_archivo, "rb") as archivo:
+        for bloque in iter(lambda: archivo.read(1024 * 1024), b""):
+            sha256.update(bloque)
+
+    return sha256.hexdigest()
+
+def generar_manifiesto(rutas_archivos: list[Path], ruta_salida: Path) -> None:
+    """Genera un manifiesto JSON con metadatos y hashes SHA-256."""
+
+    archivos = []
+
+    for ruta in rutas_archivos:
+        if not ruta.is_file():
+            raise FileNotFoundError(f"No existe el archivo: {ruta}")
+
+        registros = None
+
+        if ruta.suffix.lower() == ".parquet":
+            registros = pl.scan_parquet(ruta).select(pl.len()).collect().item()
+
+        archivos.append({
+            "nombre": ruta.name,
+            "ruta": ruta.as_posix(),
+            "tamano_bytes": ruta.stat().st_size,
+            "registros": registros,
+            "sha256": calcular_sha256(ruta),
+        })
+
+    manifiesto = {
+        "equipo": 48,
+        "version_manifiesto": "1.0",
+        "fecha_generacion_utc": datetime.now(timezone.utc).isoformat(),
+        "archivos": archivos,
+    }
+
+    ruta_salida.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(ruta_salida, "w", encoding="utf-8") as archivo:
+        json.dump(manifiesto, archivo, indent=4, ensure_ascii=False)
 
 def leer_viajes(ruta: Path) -> pl.DataFrame:
     """Lee el archivo CSV original de MiBici."""
@@ -235,6 +283,33 @@ def procesar_periodos(
                 f"Catálogo procesado: {nombre} "
                 f"({estaciones.height:,} estaciones)"
             )
+
+        # Reunir los CSV y Parquet de los periodos procesados
+    archivos_manifiesto = []
+
+    for anio, mes in periodos:
+        periodo = f"{anio}_{mes:02d}"
+
+        archivos_manifiesto.extend([
+            RAW_DATA_DIR / f"datos_abiertos_{periodo}.csv",
+            PROCESSED_DATA_DIR / f"viajes_{periodo}.parquet",
+        ])
+
+    # Incluir los catálogos procesados durante esta ejecución
+    if DESCARGAR_CATALOGOS:
+        for nombre in sorted(catalogos):
+            archivos_manifiesto.extend([
+                EXTERNAL_DATA_DIR / nombre,
+                PROCESSED_DATA_DIR / f"{Path(nombre).stem}.parquet",
+            ])
+
+    # Generar manifiesto con los archivos existentes
+    generar_manifiesto(
+        rutas_archivos=archivos_manifiesto,
+        ruta_salida=DATA_DIR / "manifest.json",
+    )
+
+    logger.success("Manifiesto SHA-256 generado correctamente")
 
     logger.success("Procesamiento de periodos finalizado")
 
