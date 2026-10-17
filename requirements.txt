@@ -1,33 +1,35 @@
 # Analisis y procesamiento de datos
-numpy
-pandas
-polars
-pyarrow
-requests
+numpy==2.4.6
+pandas==3.0.6
+polars==2.0.0
+pyarrow==25.0.1
+requests==2.34.2
+beautifulsoup4==4.15.0
 
 # Machine Learning
-scikit-learn
+scikit-learn==1.9.1
 
 # MLOps
-mlflow
+mlflow==3.17.1
 
 # Visualizacion
-matplotlib
+matplotlib==3.11.2
 
 # Exploracion y notebooks
-ipython
-jupyterlab
-notebook
+ipython==9.17.1
+jupyterlab==4.6.4
+notebook==7.6.3
 
 # Herramientas de desarrollo
-loguru
-tqdm
-typer
-python-dotenv
+loguru==0.7.3
+tqdm==4.70.1
+typer==0.27.3
+python-dotenv==1.2.4
 
 # Pruebas y calidad de codigo
-pytest
-ruff
+pytest==9.1.1
+pytest-cov==7.1.0
+ruff==0.17.0
 
 # Instalacion del paquete local
 -e .
