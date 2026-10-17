@@ -6,6 +6,111 @@
 
 Proyecto MLOps para analizar viajes de MiBici Guadalajara mediante modelos de regresion, clasificacion y clustering, con pipelines reproducibles y seguimiento de experimentos en MLflow.
 
+## Instalación del proyecto
+
+Este proyecto utiliza Python 3.11 y sigue la estructura de Cookiecutter Data Science.
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/NetsaRom/TC5061-Proyecto-Equipo48.git
+cd TC5061-Proyecto-Equipo48
+```
+
+### 2. Crear un entorno virtual
+
+```bash
+python3.11 -m venv .venv
+```
+
+Activar el entorno virtual:
+
+**macOS / Linux:**
+
+```bash
+source .venv/bin/activate
+```
+
+**Windows (PowerShell):**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+### 3. Instalar dependencias
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+El archivo `requirements.txt` contiene versiones fijas de las dependencias principales utilizadas para procesamiento de datos, machine learning, MLflow y pruebas.
+
+### 4. Verificar la instalación
+
+```bash
+python -m pip check
+python -m pytest tests/test_data.py -v
+```
+
+Estas instrucciones permiten preparar el entorno de desarrollo y ejecutar las pruebas de ingesta y trazabilidad del proyecto.
+
+## Ingesta y procesamiento de datos
+
+El proyecto utiliza datos abiertos del sistema de bicicletas públicas MiBici de Guadalajara, Jalisco, México.
+
+Para esta etapa se seleccionó el periodo comprendido entre **julio y septiembre de 2026**.
+
+### Ejecutar el pipeline
+
+Desde la raíz del repositorio, con el entorno virtual activado, ejecutar:
+
+```bash
+python -m mibici_mlops.dataset procesar-periodos --inicio 2026-07 --fin 2026-09
+```
+
+Este proceso realiza las siguientes operaciones:
+
+1. Obtiene los archivos CSV mensuales de viajes desde la fuente de datos abiertos de MiBici.
+2. Lee y limpia los registros de viajes.
+3. Genera archivos Parquet para su posterior análisis y modelado.
+4. Descarga y procesa el catálogo de estaciones, cuando está habilitado en la configuración.
+5. Genera el archivo `data/manifest.json` con metadatos de los archivos procesados.
+
+### Resultados del procesamiento
+
+En la ejecución de referencia se obtuvieron:
+
+| Periodo | Viajes procesados |
+|---|---:|
+| Julio de 2026 | 388,257 |
+| Agosto de 2026 | 393,524 |
+| Septiembre de 2026 | 489,298 |
+| **Total** | **1,271,079** |
+
+También se procesó el catálogo de septiembre de 2026, con **484 estaciones**.
+
+Los archivos resultantes se almacenan principalmente en `data/raw/`, `data/external/` y `data/processed/`.
+
+### Manifiesto de trazabilidad
+
+El archivo `data/manifest.json` registra información de los archivos utilizados y generados durante la ingesta:
+
+- Nombre y ruta relativa del archivo.
+- Tamaño en bytes.
+- Número de registros, cuando corresponde a un archivo Parquet.
+- Hash SHA-256 para comprobar su integridad.
+- Fecha de generación del manifiesto en UTC.
+
+El manifiesto se versiona en Git, mientras que los archivos CSV y Parquet permanecen excluidos mediante `.gitignore`.
+
+**Nota de reproducibilidad:** El manifiesto permite identificar diferencias entre versiones de los archivos. Si los datos publicados por la fuente cambian, una nueva descarga puede producir hashes distintos. Para reproducir exactamente una versión anterior es necesario disponer de los mismos archivos originales.
+
+### Configuración
+
+Los valores predeterminados del periodo y las rutas del proyecto se centralizan en `mibici_mlops/config.py`.
+
+Los argumentos `--inicio` y `--fin` permiten seleccionar otro intervalo mensual sin modificar el código fuente.
+
 ## Project Organization
 
 ```
