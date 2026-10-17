@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 
 from loguru import logger
 
-from mibici_mlops.config import (PROCESSED_DATA_DIR, DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR, PERIODOS_DATOS, DESCARGAR_CATALOGOS, FECHA_INICIO, FECHA_FIN, generar_periodos,)
+from mibici_mlops.config import (PROCESSED_DATA_DIR, DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR, PERIODOS_DATOS, DESCARGAR_CATALOGOS, FECHA_INICIO, FECHA_FIN, generar_periodos, PROJ_ROOT)
 
 import hashlib
 import json
@@ -37,6 +37,10 @@ def generar_manifiesto(rutas_archivos: list[Path], ruta_salida: Path) -> None:
         if not ruta.is_file():
             raise FileNotFoundError(f"No existe el archivo: {ruta}")
 
+        try:
+            ruta_registro = ruta.resolve().relative_to(PROJ_ROOT.resolve()).as_posix()
+        except ValueError:
+            ruta_registro = ruta.as_posix()
         registros = None
 
         if ruta.suffix.lower() == ".parquet":
@@ -44,7 +48,7 @@ def generar_manifiesto(rutas_archivos: list[Path], ruta_salida: Path) -> None:
 
         archivos.append({
             "nombre": ruta.name,
-            "ruta": ruta.as_posix(),
+            "ruta": ruta_registro,
             "tamano_bytes": ruta.stat().st_size,
             "registros": registros,
             "sha256": calcular_sha256(ruta),
