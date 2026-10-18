@@ -30,3 +30,45 @@ try:
     logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
 except ModuleNotFoundError:
     pass
+
+# ============================================================
+# Configuración del proyecto MiBici - Equipo 48
+# ============================================================
+
+TEAM_ID = 48
+RANDOM_SEED = 42
+
+FECHA_INICIO = "2026-07"
+FECHA_FIN = "2026-09"
+
+# Detectar y descargar los catálogos disponibles
+DESCARGAR_CATALOGOS = True
+
+
+def generar_periodos(inicio: str, fin: str) -> list[tuple[int, int]]:
+    """Genera los meses entre dos fechas YYYY-MM."""
+    from datetime import date
+
+    anio_inicio, mes_inicio = map(int, inicio.split("-"))
+    anio_fin, mes_fin = map(int, fin.split("-"))
+
+    actual = date(anio_inicio, mes_inicio, 1)
+    limite = date(anio_fin, mes_fin, 1)
+
+    if actual > limite:
+        raise ValueError("La fecha inicial no puede superar la final.")
+
+    periodos = []
+
+    while actual <= limite:
+        periodos.append((actual.year, actual.month))
+
+        if actual.month == 12:
+            actual = date(actual.year + 1, 1, 1)
+        else:
+            actual = date(actual.year, actual.month + 1, 1)
+
+    return periodos
+
+
+PERIODOS_DATOS = generar_periodos(FECHA_INICIO, FECHA_FIN)
