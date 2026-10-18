@@ -65,7 +65,7 @@ def find_column(df, candidates):
 
 
 # ============================================================
-# 3. CARGA Y FILTRADO DE DATOS (Misma estructura de referencia)
+# 3. CARGA Y FILTRADO DE DATOS
 # ============================================================
 
 def load_trips():
