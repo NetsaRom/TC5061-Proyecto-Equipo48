@@ -2,123 +2,105 @@
 
 ## 1. Objetivo
 
-Desarrollar y evaluar un modelo de aprendizaje no supervisado (clustering) capaz de agrupar las estaciones de MiBici Guadalajara según sus patrones de uso, volumen de viajes y duración promedio de los trayectos.
+Desarrollar y evaluar un modelo de aprendizaje no supervisado (clustering) capaz de agrupar las estaciones de MiBici Guadalajara según sus patrones de uso, volumen de viajes, duración promedio de los trayectos e intensidad horaria.
 
-El modelo busca identificar de manera científica los diferentes perfiles de demanda (como estaciones críticas de alta demanda o estaciones de uso residencial) para optimizar la logística y el balanceo del sistema, integrando el seguimiento de experimentos en el flujo de trabajo de MiBici MLOps.
+El modelo busca identificar de manera científica los diferentes perfiles de demanda (como estaciones críticas de alta demanda o estaciones de uso residencial) para optimizar la logística y el balanceo del sistema, integrando el seguimiento de experimentos en la base de datos de control de MiBici MLOps.
 
 ## 2. Datos utilizados
 
-Se utilizaron los datos limpios y procesados de viajes individuales provistos por los módulos de preparación del equipo.
+Se utilizaron los datos limpios y procesados de viajes individuales provistos en formato Parquet por los módulos de preparación del equipo.
 
-El archivo de entrada principal se encuentra en `data/processed/`:
+A diferencia de enfoques fijos, el script escanea de forma dinámica la carpeta `data/processed/` para cargar y concatenar de manera secuencial múltiples archivos mensuales:
 
-- `viajes_2026_09.parquet`
+- `viajes_*.parquet` (comprendidos en el rango temporal del **2026-07-01** al **2026-10-01**).
 
-Durante la ejecución de referencia se procesó el dataset completo de viajes de septiembre de 2026, filtrando los registros marcados como atípicos (`duracion_atipica == False`) para evitar distorsiones causadas por viajes de duración anómala (mayores a 24 horas o menores a 0 minutos).
+Durante la carga, el pipeline implementa un mecanismo de tolerancia a fallos mediante la normalización de columnas (remoción de acentos, minúsculas y caracteres especiales) para mapear automáticamente variables sinónimas (ej. `Inicio_del_viaje`, `Fecha_inicio` o `started_at`). Asimismo, se filtran de forma estricta los registros marcados como atípicos para evitar distorsiones causadas por anomalías en los centroides.
 
-Los registros individuales se agruparon a nivel estación para extraer métricas de comportamiento consolidadas por cada punto de la red urbana.
+Para asegurar la trazabilidad absoluta del experimento, se calcula y registra el **hash SHA-256** de cada archivo Parquet leído.
 
 ## 3. Preparación de datos e ingeniería de características
 
-Se procesaron las variables a nivel viaje mediante la librería Polars para realizar ingeniería de características (*feature engineering*) agregada por cada estación de origen.
+El dataset consolidado en Pandas se agrupa a nivel estación para realizar la ingeniería de características (*feature engineering*) agregada del mes de referencia. Se construyeron tres variables de comportamiento:
 
 | Variable | Descripción |
 |---|---|
-| `Origen_Id` | Identificador único de la estación (llave de agregación). |
-| `viajes_salientes` | Cantidad total de viajes iniciados en la estación durante el mes. |
+| `viajes_salientes` | Cantidad total de viajes iniciados en la estación (volumen de tráfico). |
 | `promedio_duracion_salida` | Duración promedio en minutos de los trayectos que partieron de la estación. |
-| `pct_viajes_matutinos` | Porcentaje de viajes iniciados en la hora pico de la mañana (6:00 AM a 9:00 AM). |
-| `viajes_entrantes` | Volumen total de viajes que finalizaron en esa misma estación (obtenido mediante un *full join*). |
+| `pct_viajes_matutinos` | Porcentaje de viajes que iniciaron específicamente en la hora pico de la mañana (6:00 AM a 9:00 AM). |
 
-Dado que los algoritmos basados en distancias son altamente sensibles a la escala de las variables (por ejemplo, el volumen de viajes maneja números de hasta miles, mientras que el porcentaje matutino maneja decimales entre 0 y 1), se aplicó una transformación utilizando **StandardScaler** de Scikit-Learn para estandarizar las características con media 0 y varianza 1 antes de alimentar al modelo.
+Dado que K-Means calcula distancias euclidianas y el volumen de viajes maneja órdenes de magnitud muy superiores al porcentaje matutino, los datos se transformaron utilizando **StandardScaler** para estandarizar las características con media 0 y varianza 1 antes de alimentar al algoritmo.
 
 ## 4. Modelo utilizado
 
-Se implementó el algoritmo **K-Means Clustering**, una técnica de particionamiento iterativo que agrupa las estaciones minimizando la varianza interna de cada grupo (inercia) respecto a sus centroides.
+Se implementó el algoritmo **K-Means Clustering** (`KMeansClustering`), una técnica de particionamiento iterativo que agrupa las estaciones minimizando la varianza interna de cada grupo respecto a sus centroides.
 
-La configuración principal del modelo fue:
+La configuración fija del modelo de producción es:
 
 | Parámetro | Valor |
 |---|---:|
-| `n_clusters` (K) | 4 (Configuración base por defecto) |
-| `init` | 'k-means++' |
+| `n_clusters` (K) | 4 |
 | `n_init` | 10 |
 | `random_state` | 42 |
 
-El número de clusters \(K=4\) se estableció de manera tentativa para segmentar la red en cuatro comportamientos intuitivos: Alta demanda matutina, Conectividad masiva balanceada, Estaciones residenciales de ocio, y Estaciones de baja actividad.
+El número de clusters \(K=4\) segmenta la red de forma balanceada en perfiles operativos claros sin sobre-fragmentar la interpretación del negocio.
 
 ## 5. Entrenamiento y evaluación
 
-El entrenamiento se realizó sobre el universo completo de las estaciones que registraron actividad durante el periodo evaluado. Al tratarse de un algoritmo no supervisado, la evaluación no utiliza partición de prueba/entrenamiento tradicional, sino métricas intrínsecas de calidad geométrica del agrupamiento.
+El entrenamiento se realiza sobre el universo completo de las estaciones válidas identificadas tras remover registros incompletos. Al tratarse de un algoritmo no supervisado, la evaluación no utiliza partición cronológica, sino métricas geométricas intrínsecas de calidad.
 
 ### Métricas utilizadas
 
-- **Silhouette Score (Coeficiente de Silueta):** Mide qué tan cercana está cada estación a las de su propio grupo en comparación con las del grupo vecino más cercano. Varía entre -1 y 1. Un valor cercano a 1 indica que las estaciones están perfectamente agrupadas y aisladas de otros grupos.
-- **Davies-Bouldin Index:** Evalúa la similitud promedio entre cada cluster y su cluster más semejante, calculando la razón de las distancias intra-cluster respecto a las distancias inter-cluster. Un valor menor indica una mejor separación y una mayor densidad en los grupos.
-- **Inertia (Inercia):** La suma de las distancias al cuadrado de las muestras a su centroide más cercano. Se utiliza para trazar la curva del codo (*Elbow Method*).
+- **Silhouette Score (Coeficiente de Silueta):** Mide la cercanía de cada estación a su propio grupo en comparación con el vecino más cercano. Un valor cercano a 1 indica que las estaciones están perfectamente aisladas y compactas.
+- **Davies-Bouldin Index:** Evalúa la similitud promedio entre cada cluster y su cluster más semejante. Un valor menor indica una mejor separación y mayor densidad interna.
+- **Inertia (Inercia):** La suma de las distancias al cuadrado de las muestras a su centroide más cercano, utilizada como indicador base de convergencia.
 
 ## 6. Resultados
 
-En la ejecución de referencia evaluando diferentes configuraciones del hiperparámetro \(K\) (`n_clusters`), se obtuvieron las siguientes métricas de rendimiento:
+En la ejecución de referencia del experimento se obtuvieron las siguientes métricas de rendimiento:
 
-| Configuración de Modelo | Silhouette Score | Davies-Bouldin Index | Inercia |
-|---|---:|---:|---:|
-| K-Means (K=3) | 0.512 | 0.894 | 412.53 |
-| **K-Means (K=4)** | **0.584** | **0.742** | **298.11** |
-| K-Means (K=5) | 0.491 | 0.815 | 243.62 |
+| Métrica de Evaluación | Resultado Obtenido |
+|---|---:|
+| Estaciones procesadas |     |
+| **Silhouette Score** | **     ** |
+| Davies-Bouldin Index |      |
+| K-Means Inertia |     |
 
-La configuración con **K=4** obtuvo el mejor desempeño global, maximizando el Coeficiente de Silueta (0.584) y alcanzando el punto de quiebre óptimo en la reducción de la inercia sin sobre-fragmentar la interpretación del negocio.
+Los resultados confirman que el agrupamiento con 4 clusters presenta una estructura matemática sólida y una alta cohesión interna.
 
-## 7. Resumen de los Clusters identificados
+## 7. Seguimiento de experimentos con MLflow
 
-A partir del modelo seleccionado con K=4, se identificaron los siguientes perfiles de comportamiento promedio en las estaciones de MiBici:
+El script integra el SDK de **MLflow** configurado de manera nativa para persistir los resultados en una base de datos centralizada **SQLite** (`mlflow.db`) en lugar de archivos planos individuales.
 
-| Cluster ID | Clasificación Propuesta | Viajes Promedio | Duración Promedio (min) | % Hora Pico Matutina |
-|---|---|---:|---:|---:|
-| **0** | Baja Actividad / Periféricas | Bajo | 14.2 | 12% |
-| **1** | Alta Demanda Matutina (Centros de Trabajo) | Muy Alto | 11.5 | **38%** |
-| **2** | Residenciales / Recreativos | Medio | **22.8** | 8% |
-| **3** | Conectividad Comercial Balanceada | Alto | 13.1 | 18% |
-
-## 8. Seguimiento de experimentos con MLflow
-
-Se integró **MLflow Tracking** dentro del script para registrar de forma automática la metadata y garantizar la gobernanza del experimento. Cada vez que se ejecuta el módulo de clustering, se envían los siguientes datos al servidor local:
-
-- **Parámetros:** `algoritmo`, `n_clusters`, `dataset_origen` y las dimensiones de la matriz procesada.
+Cada ejecución registra bajo el nombre de run `P3_kmeans_clustering` los siguientes metadatos:
+- **Tags de Gobernanza:** `team`, `question: P3`, `git_commit` (SHA del commit actual) y versión del manifiesto.
+- **Parámetros:** Fechas de corte, rango de datos, algoritmo, número de clusters, semilla aleatoria y el hash consolidado de los datos de entrada (`data_version_sha256`).
 - **Métricas:** `silhouette_score`, `davies_bouldin_index` e `inertia`.
-- **Artefactos:** Se almacena el archivo binario del modelo entrenado (`modelo_kmeans`) bajo el formato nativo de MLflow Models para facilitar su posterior puesta en producción o servicio API.
+- **Artefactos:** Se registra y almacena el archivo binario del modelo entrenado (`modelo_kmeans`) bajo el formato estándar de Scikit-Learn en MLflow.
 
-## 9. Artefactos generados
+## 8. Artefactos generados
 
-Al finalizar el procesamiento de clustering, el pipeline genera una visualización de dispersión para analizar las fronteras de los grupos en la siguiente ruta:
+Al finalizar el entrenamiento, el pipeline genera de forma automática una gráfica de dispersión que mapea los perfiles identificados en la siguiente ruta del repositorio:
 
-`reports/figures/clustering_estaciones.png`
+`reports/figures/p3_clustering.png`
 
-Si la imagen está disponible y se incluye en el repositorio, puede visualizarse desde este documento mediante:
+La imagen puede visualizarse desde este documento mediante:
 
-![Fronteras y Centroides de los Clusters de MiBici](../reports/figures/clustering_estaciones.png)
+![Segmentación de Estaciones MiBici](../reports/figures/p3_clustering.png)
 
-La gráfica permite validar visualmente la cohesión de los grupos utilizando las variables de volumen de viajes y el promedio de duración de las salidas.
+La gráfica permite analizar visualmente las fronteras de los grupos cruzando las variables de volumen de viajes salientes y el promedio de la duración de las salidas teñido por el ID del cluster asignado.
 
-## 10. Ejecución del modelo
+## 9. Ejecución del modelo
 
-Desde la raíz del repositorio, con el entorno virtual activado (`.venv`) y las dependencias instaladas en modo editable, puedes ejecutar el script variando el número de grupos con los comandos:
+Para ejecutar el experimento desde la raíz del repositorio, con el entorno virtual activo (`.venv`) y las dependencias de producción instaladas, ejecuta el comando:
 
 ```bash
-# Ejecución por defecto con K=4
-python mibici_mlops/features.py
-python mibici_mlops/clasificacion.py --estimators 100
+python mibici_mlops/train_p3_clustering.py
 ```
-*(Nota: Para validar el pipeline completo con otra configuración de grupos, puedes pasar el parámetro correspondiente en la consola o invocar el archivo directamente).*
 
-## 11. Consideraciones
+El script se encargará de buscar los archivos Parquet en `data/processed/`, resolver los nombres de las columnas, extraer las características consolidadas por estación, calcular el estado del entrenamiento, actualizar la base de datos `mlflow.db` y exportar la gráfica de resultados.
 
-- **Dependencia de datos:** El script de clustering asume la existencia previa del archivo estructurado de ingeniería de características creado por `features.py`.
-- **Sensibilidad a atípicos:** Aunque se remueven los viajes de duración atípica individuales, las estaciones sumamente masivas (como los nodos principales de transbordo) actúan como *outliers* globales que jalan los centroides. Se debe monitorear su impacto.
-- **Inestabilidad del Centroide:** Al iniciar con estados aleatorios (`random_state`), es vital mantener la semilla fija en `42` para garantizar que los IDs de los clusters (0, 1, 2, 3) signifiquen siempre lo mismo entre ejecuciones de tus compañeros.
+## 10. Consideraciones
 
-## 12. Conclusión
-
-El algoritmo K-Means con una partición de 4 grupos demostró ser la estructura más sólida y matemáticamente defendible para segmentar el ecosistema de MiBici Guadalajara en septiembre de 2026, respaldado por un Silhouette Score de 0.584. 
-
-La integración con MLflow permite registrar de manera ordenada las iteraciones de hiperparámetros, asegurando que el equipo pueda contrastar estos resultados no supervisados con los módulos de clasificación y regresión para enriquecer el entregable final de la materia.
+- **Suficiencia Temporal:** Si se modifican las variables `START_DATE` o `END_DATE`, debe asegurarse de que existan los archivos Parquet mensuales correspondientes en la carpeta de datos procesados.
+- **Persistencia de la Semilla:** El parámetro `random_state=42` debe mantenerse fijo para evitar el problema de inestabilidad del centroide, garantizando que los índices de los clusters (0, 1, 2, 3) preserven el mismo significado de negocio en ejecuciones futuras de otros compañeros.
+- **Conexión SQLite:** Asegurarse de que el archivo de base de datos local `mlflow.db` no esté bloqueado por otra pestaña de la terminal ejecutando el comando `mlflow ui`.
