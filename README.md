@@ -60,23 +60,6 @@ El proyecto utiliza datos abiertos del sistema de bicicletas públicas MiBici de
 
 Para esta etapa se seleccionó el periodo comprendido entre **julio y septiembre de 2026**.
 
-## Modelos de Machine Learning
-
-El proyecto contempla el desarrollo y evaluación de modelos de Machine Learning para analizar la demanda de viajes de MiBici Guadalajara, incluyendo tareas de regresión, clasificación y clustering. Se busca generar modelos reproducibles y dar seguimiento a sus experimentos mediante MLflow.
-
-## Modelos de Machine Learning
-
-El proyecto contempla el desarrollo y evaluación de modelos de Machine Learning para analizar los viajes de MiBici Guadalajara mediante tres enfoques principales: **regresión, clasificación y clustering**. Estos modelos permiten abordar distintos problemas de análisis y predicción a partir de los datos del sistema de bicicletas públicas.
-
-La documentación técnica de los modelos, incluyendo sus objetivos, preparación de datos, metodología, configuración y resultados de evaluación, se encuentra en el siguiente documento:
-
-Consulta la [documentación de los modelos de Machine Learning](docs/README.md) para conocer los detalles de cada enfoque.
-
-### Modelos considerados
-
-- **Regresión:** predicción de la cantidad de viajes por estación y hora mediante un modelo Random Forest Regressor.
-- **Clasificación:** desarrollo de modelos para asignar categorías a las observaciones según el objetivo definido.
-- **Clustering:** identificación de grupos de observaciones con características similares mediante técnicas de aprendizaje no supervisado.
 
 ### Ejecutar el pipeline
 
@@ -128,6 +111,21 @@ El manifiesto se versiona en Git, mientras que los archivos CSV y Parquet perman
 Los valores predeterminados del periodo y las rutas del proyecto se centralizan en `mibici_mlops/config.py`.
 
 Los argumentos `--inicio` y `--fin` permiten seleccionar otro intervalo mensual sin modificar el código fuente.
+
+
+## Modelos de Machine Learning
+
+El proyecto contempla el desarrollo y evaluación de modelos de Machine Learning para analizar los viajes de MiBici Guadalajara mediante tres enfoques principales: **regresión, clasificación y clustering**. Estos modelos permiten abordar distintos problemas de análisis y predicción a partir de los datos del sistema de bicicletas públicas.
+
+El código fuente de los modelos, incluyendo sus implementaciones y componentes relacionados, se encuentra en el directorio `mibici_mlops/modeling/`.
+
+### Modelos considerados
+
+- **Regresión:** predicción de la cantidad de viajes por estación y hora mediante un modelo Random Forest Regressor.
+- **Clasificación:** desarrollo de modelos para asignar categorías a las observaciones según el objetivo definido.
+- **Clustering:** identificación de grupos de observaciones con características similares mediante técnicas de aprendizaje no supervisado.
+
+Para consultar los detalles técnicos de cada enfoque, incluyendo objetivos, preparación de datos, metodología, configuración y resultados de evaluación, revisa la documentación disponible en `docs/README.md`.
 
 ## Project Organization
 
