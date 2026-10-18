@@ -129,6 +129,7 @@ def obtener_enlaces_csv() -> dict[str, str]:
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=True,
     )
 
