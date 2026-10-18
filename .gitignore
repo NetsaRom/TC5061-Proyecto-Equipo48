@@ -1,5 +1,8 @@
-# Data
-/data/
+# Data: excluir todos los datos de MiBici
+/data/*
+
+# Permitir únicamente el manifiesto de trazabilidad
+!/data/manifest.json
 
 # Mac OS-specific storage files
 .DS_Store
