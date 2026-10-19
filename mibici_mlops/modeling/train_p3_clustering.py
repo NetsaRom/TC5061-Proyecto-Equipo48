@@ -18,7 +18,7 @@ from sklearn.metrics import silhouette_score, davies_bouldin_score
 # 1. CONFIGURACIÓN
 # ============================================================
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
+ROOT_DIR = Path(__file__).resolve().parents[2]
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 REPORTS_DIR = ROOT_DIR / "reports" / "figures"
 
@@ -28,7 +28,7 @@ RANDOM_STATE = 42
 
 EXPERIMENT_NAME = os.getenv(
     "MLFLOW_EXPERIMENT_NAME",
-    "mibici-equipoNN"
+    "mibici-equipo48"
 )
 
 MODEL_NAME = "KMeansClustering"

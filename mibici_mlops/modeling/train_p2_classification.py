@@ -1,11 +1,11 @@
 
 from pathlib import Path
+import subprocess
 
 import typer
 import polars as pl
 import mlflow
 import mlflow.sklearn
-
 from loguru import logger
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -29,6 +29,8 @@ FEATURES = [
 ]
 
 TARGET = "alta_demanda"
+EXPERIMENT_NAME = "mibici-equipo48"
+TEAM_NAME = "mibici-equipo48"
 
 
 @app.command()
@@ -69,7 +71,9 @@ def entrenar_clasificador(
     df = df.select(required_columns).drop_nulls()
 
     if df.height == 0:
-        raise ValueError("No hay registros disponibles después de eliminar nulos.")
+        raise ValueError(
+            "No hay registros disponibles después de eliminar nulos."
+        )
 
     X = df.select(FEATURES).to_numpy()
     y = df[TARGET].to_numpy()
@@ -88,7 +92,7 @@ def entrenar_clasificador(
             "para realizar la división estratificada."
         )
 
-    # División estratificada para conservar la proporción de clases
+    # División estratificada
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -102,10 +106,34 @@ def entrenar_clasificador(
     tracking_uri = f"sqlite:///{mlflow_db.as_posix()}"
 
     mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment("MiBici_Clasificacion_Estaciones")
+    mlflow.set_experiment(EXPERIMENT_NAME)
+
+    # Obtener el commit actual del repositorio
+    try:
+        git_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=PROJ_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        logger.warning(f"No fue posible obtener el commit de Git: {exc}")
+        git_commit = "unknown"
+
+    # Obtener versión de datos desde el manifiesto, si existe
+    manifest_path = PROJ_ROOT / "data" / "manifest.json"
+    data_version = "unknown"
+
+    if manifest_path.exists():
+        import hashlib
+
+        data_version = hashlib.sha256(
+            manifest_path.read_bytes()
+        ).hexdigest()
 
     with mlflow.start_run(
-        run_name=f"RandomForest_Clasif_E{n_estimators}"
+        run_name=f"P2_random_forest_clasificacion_E{n_estimators}"
     ):
         logger.info("Entrenando modelo Random Forest Classifier...")
 
@@ -127,34 +155,79 @@ def entrenar_clasificador(
         f1 = f1_score(y_test, preds, zero_division=0)
         auc = roc_auc_score(y_test, probabilidades)
 
+        # Matriz de confusión y reporte
+        matriz = confusion_matrix(y_test, preds, labels=[0, 1])
+        reporte = classification_report(
+            y_test,
+            preds,
+            labels=[0, 1],
+            zero_division=0,
+        )
+
         logger.info(f"Accuracy: {acc:.4f}")
         logger.info(f"F1-score: {f1:.4f}")
         logger.info(f"ROC-AUC: {auc:.4f}")
+        logger.info(f"Matriz de confusión:\n{matriz}")
+        logger.info(f"Reporte de clasificación:\n{reporte}")
 
-        logger.info(
-            "Matriz de confusión:\n"
-            f"{confusion_matrix(y_test, preds, labels=[0, 1])}"
-        )
+        # Parámetros
+        mlflow.log_params({
+            "model": "RandomForestClassifier",
+            "n_estimators": n_estimators,
+            "max_depth": str(clf.max_depth),
+            "random_state": 42,
+            "test_size": test_size,
+            "features": ",".join(FEATURES),
+            "target": TARGET,
+            "class_weight": "balanced",
+            "dataset_path": str(input_path),
+        })
 
-        logger.info(
+        # Métricas
+        mlflow.log_metrics({
+            "accuracy": acc,
+            "f1_score": f1,
+            "roc_auc": auc,
+        })
+
+        # Etiquetas de trazabilidad
+        mlflow.set_tags({
+            "team": TEAM_NAME,
+            "question": "P2",
+            "git_commit": git_commit,
+            "data_version": data_version,
+            "target_type": "synthetic_high_demand_proxy",
+        })
+
+        # Artefactos de evaluación
+        artifacts_dir = PROJ_ROOT / "reports" / "figures"
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+        report_path = artifacts_dir / "p2_classification_report.txt"
+        report_path.write_text(
+            "MiBici - P2: Clasificación de alta demanda\n\n"
+            f"Experimento: {EXPERIMENT_NAME}\n"
+            f"Commit: {git_commit}\n"
+            f"Versión del manifiesto: {data_version}\n"
+            f"Accuracy: {acc:.4f}\n"
+            f"F1-score: {f1:.4f}\n"
+            f"ROC-AUC: {auc:.4f}\n\n"
+            "Matriz de confusión (clases 0, 1):\n"
+            f"{matriz}\n\n"
             "Reporte de clasificación:\n"
-            f"{classification_report(y_test, preds, zero_division=0)}"
+            f"{reporte}\n\n"
+            "Limitación: la etiqueta alta_demanda es un proxy sintético "
+            "basado en la demanda observada; no representa mediciones "
+            "reales de inventario ni confirma desabasto de bicicletas.\n",
+            encoding="utf-8",
         )
 
-        # Registro de parámetros y métricas
-        mlflow.log_param("model", "RandomForestClassifier")
-        mlflow.log_param("n_estimators", n_estimators)
-        mlflow.log_param("max_depth", clf.max_depth)
-        mlflow.log_param("random_state", 42)
-        mlflow.log_param("test_size", test_size)
-        mlflow.log_param("features", ",".join(FEATURES))
-        mlflow.log_param("target", TARGET)
-        mlflow.log_param("class_weight", "balanced")
+        mlflow.log_artifact(
+            str(report_path),
+            artifact_path="evaluacion",
+        )
 
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("f1_score", f1)
-        mlflow.log_metric("roc_auc", auc)
-
+        # Registro del modelo
         mlflow.sklearn.log_model(
             sk_model=clf,
             name="modelo_clasificador",
@@ -162,7 +235,9 @@ def entrenar_clasificador(
             skops_trusted_types=["sklearn.tree._tree.Tree"],
         )
 
-        logger.success("Modelo de clasificación registrado en MLflow.")
+        logger.success(
+            "Modelo, métricas, etiquetas y reporte registrados en MLflow."
+        )
 
 
 if __name__ == "__main__":
