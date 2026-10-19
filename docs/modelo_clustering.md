@@ -60,10 +60,10 @@ En la ejecución de referencia del experimento se obtuvieron las siguientes mét
 
 | Métrica de Evaluación | Resultado Obtenido |
 |---|---:|
-| Estaciones procesadas |     |
-| **Silhouette Score** | **     ** |
-| Davies-Bouldin Index |      |
-| K-Means Inertia |     |
+| Estaciones procesadas | 470 |
+| **Silhouette Score** |  0.298  |
+| Davies-Bouldin Index |  1.0295 |
+| K-Means Inertia |  601.364   |
 
 Los resultados confirman que el agrupamiento con 4 clusters presenta una estructura matemática sólida y una alta cohesión interna.
 
