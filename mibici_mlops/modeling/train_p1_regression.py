@@ -32,7 +32,7 @@ RANDOM_STATE = 42
 
 EXPERIMENT_NAME = os.getenv(
     "MLFLOW_EXPERIMENT_NAME",
-    "mibici-equipoNN"
+    "mibici-equipo48"
 )
 
 MODEL_NAME = "RandomForestRegressor"
