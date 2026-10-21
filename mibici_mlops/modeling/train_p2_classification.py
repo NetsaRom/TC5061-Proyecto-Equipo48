@@ -1,24 +1,24 @@
 
 from pathlib import Path
 import subprocess
+import os
 
-import typer
-import polars as pl
+from loguru import logger
 import mlflow
 import mlflow.sklearn
-from loguru import logger
+import polars as pl
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     accuracy_score,
-    f1_score,
-    roc_auc_score,
     classification_report,
     confusion_matrix,
+    f1_score,
+    roc_auc_score,
 )
+from sklearn.model_selection import train_test_split
+import typer
 
 from mibici_mlops.config import PROCESSED_DATA_DIR, PROJ_ROOT
-
 
 app = typer.Typer()
 
@@ -29,7 +29,10 @@ FEATURES = [
 ]
 
 TARGET = "alta_demanda"
-EXPERIMENT_NAME = "mibici-equipo48"
+EXPERIMENT_NAME = os.getenv(
+    "MLFLOW_EXPERIMENT_NAME",
+    "mibici-equipo48",
+)
 TEAM_NAME = "mibici-equipo48"
 
 
@@ -101,9 +104,15 @@ def entrenar_clasificador(
         stratify=y,
     )
 
-    # Configuración de MLflow con SQLite
+
+    # Configuración de MLflow: servidor remoto o SQLite local.
+    import os
+
     mlflow_db = (PROJ_ROOT / "mlflow.db").resolve()
-    tracking_uri = f"sqlite:///{mlflow_db.as_posix()}"
+    tracking_uri = os.getenv(
+        "MLFLOW_TRACKING_URI",
+        f"sqlite:///{mlflow_db.as_posix()}",
+    )
 
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(EXPERIMENT_NAME)
@@ -132,9 +141,19 @@ def entrenar_clasificador(
             manifest_path.read_bytes()
         ).hexdigest()
 
-    with mlflow.start_run(
-        run_name=f"P2_random_forest_clasificacion_E{n_estimators}"
-    ):
+    from contextlib import nullcontext
+
+    active_run = mlflow.active_run()
+
+    run_context = (
+        nullcontext(active_run)
+        if active_run is not None
+        else mlflow.start_run(
+            run_name=f"P2_random_forest_clasificacion_E{n_estimators}"
+        )
+    )
+
+    with run_context:
         logger.info("Entrenando modelo Random Forest Classifier...")
 
         clf = RandomForestClassifier(
@@ -172,9 +191,6 @@ def entrenar_clasificador(
 
         # Parámetros
         mlflow.log_params({
-            "model": "RandomForestClassifier",
-            "n_estimators": n_estimators,
-            "max_depth": str(clf.max_depth),
             "random_state": 42,
             "test_size": test_size,
             "features": ",".join(FEATURES),
@@ -198,6 +214,18 @@ def entrenar_clasificador(
             "data_version": data_version,
             "target_type": "synthetic_high_demand_proxy",
         })
+
+        manifest_path = PROJ_ROOT / "data" / "manifest.json"
+
+        if not manifest_path.is_file():
+            raise FileNotFoundError(
+                f"No se encontró el manifiesto de datos: {manifest_path}"
+            )
+
+        mlflow.log_artifact(
+            str(manifest_path),
+            artifact_path="data_lineage",
+        )
 
         # Artefactos de evaluación
         artifacts_dir = PROJ_ROOT / "reports" / "figures"

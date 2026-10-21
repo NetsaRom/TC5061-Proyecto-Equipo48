@@ -1,18 +1,24 @@
-from pathlib import Path
 import hashlib
 import os
+from pathlib import Path
 import re
 import unicodedata
 
 import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
-import numpy as np
 import pandas as pd
-
 from sklearn.cluster import KMeans
+from sklearn.metrics import davies_bouldin_score, silhouette_score
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, davies_bouldin_score
+
+from mibici_mlops.config import (
+    FECHA_FIN_EXCLUSIVA,
+    FECHA_INICIO,
+    N_CLUSTERS,
+    RANDOM_SEED,
+)
 
 # ============================================================
 # 1. CONFIGURACIÓN
@@ -22,9 +28,9 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 REPORTS_DIR = ROOT_DIR / "reports" / "figures"
 
-START_DATE = "2026-07-01"
-END_DATE = "2026-10-01"
-RANDOM_STATE = 42
+START_DATE = f"{FECHA_INICIO}-01"
+END_DATE = FECHA_FIN_EXCLUSIVA
+RANDOM_STATE = RANDOM_SEED
 
 EXPERIMENT_NAME = os.getenv(
     "MLFLOW_EXPERIMENT_NAME",
@@ -32,7 +38,6 @@ EXPERIMENT_NAME = os.getenv(
 )
 
 MODEL_NAME = "KMeansClustering"
-N_CLUSTERS = 4  # Número de grupos adaptado a la lógica del negocio
 
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -197,13 +202,35 @@ def run_experiment():
 
     git_commit = os.getenv("GIT_COMMIT", "unknown")
 
-    with mlflow.start_run(run_name="P3_kmeans_clustering"):
+    from contextlib import nullcontext
+
+    active_run = mlflow.active_run()
+
+    run_context = (
+        nullcontext(active_run)
+        if active_run is not None
+        else mlflow.start_run(run_name="P3_kmeans_clustering")
+    )
+
+    with run_context:
         mlflow.set_tags({
             "team": EXPERIMENT_NAME,
             "question": "P3",
             "git_commit": git_commit,
             "data_version": "sha256_manifest",
         })
+
+        manifest_path = ROOT_DIR / "data" / "manifest.json"
+
+        if not manifest_path.is_file():
+            raise FileNotFoundError(
+                f"No se encontró el manifiesto de datos: {manifest_path}"
+            )
+
+        mlflow.log_artifact(
+            str(manifest_path),
+            artifact_path="data_lineage",
+        )
 
         mlflow.log_params({
             "start_date": START_DATE,
@@ -219,8 +246,15 @@ def run_experiment():
         })
 
         # Entrenar K-Means
-        model = KMeans(n_clusters=N_CLUSTERS, random_state=RANDOM_STATE, n_init=10)
-        cluster_labels = model.fit_predict(X_scaled)
+        model = make_pipeline(
+            StandardScaler(),
+            KMeans(
+                n_clusters=N_CLUSTERS,
+                random_state=RANDOM_STATE,
+                n_init=10,
+            ),
+        )
+        cluster_labels = model.fit_predict(X)
         data["cluster"] = cluster_labels
 
         # Evaluación Geométrica Intrínseca
@@ -230,11 +264,15 @@ def run_experiment():
         mlflow.log_metrics({
             "silhouette_score": silhouette,
             "davies_bouldin_index": davies_bouldin,
-            "inertia": model.inertia_,
+            "inertia": model.named_steps["kmeans"].inertia_,
         })
 
         # Registrar el modelo entrenado
-        mlflow.sklearn.log_model(model, "modelo_kmeans")
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            name="modelo_kmeans",
+            input_example=data[features].head(5),
+        )
 
         # Generación de la gráfica de visualización de perfiles
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -266,7 +304,7 @@ def run_experiment():
         print("\n===== RESULTADOS P3 =====")
         print(f"Viajes totales leídos: {len(trips):,}")
         print(f"Estaciones procesadas: {len(data):,}")
-        print(f"K-Means Inertia: {model.inertia_:.3f}")
+        print(f"K-Means Inertia: {model.named_steps['kmeans'].inertia_:.3f}")
         print(f"Silhouette Score (Calidad): {silhouette:.4f}")
         print(f"Davies-Bouldin Index: {davies_bouldin:.4f}")
         print(f"Gráfica guardada en: {figure_path}")

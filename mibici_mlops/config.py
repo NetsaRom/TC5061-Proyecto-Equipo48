@@ -41,6 +41,15 @@ RANDOM_SEED = 42
 FECHA_INICIO = "2026-07"
 FECHA_FIN = "2026-09"
 
+# Límites temporales: FECHA_FIN es inclusiva por mes.
+FECHA_FIN_EXCLUSIVA = "2026-10-01"
+
+# Hiperparámetros predeterminados de los modelos.
+N_ESTIMATORS = 100
+MAX_DEPTH = 15
+N_CLUSTERS = 4
+TEST_SIZE = 0.2
+
 # Detectar y descargar los catálogos disponibles
 DESCARGAR_CATALOGOS = True
 

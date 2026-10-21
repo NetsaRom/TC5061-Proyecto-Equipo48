@@ -1,0 +1,25 @@
+name: mibici-equipo48
+
+python_env: python_env.yaml
+
+entry_points:
+  ingest:
+    parameters: {}
+    command: "python -m mibici_mlops.project"
+
+  train:
+    parameters:
+      question: {type: str}
+      model: {type: str, default: "default"}
+      n_estimators: {type: int, default: 100}
+      max_depth: {type: int, default: 15}
+      n_clusters: {type: int, default: 4}
+      test_size: {type: float, default: 0.2}
+    command: >-
+      python -m mibici_mlops.modeling.train_project
+      --question {question}
+      --model {model}
+      --n-estimators {n_estimators}
+      --max-depth {max_depth}
+      --n-clusters {n_clusters}
+      --test-size {test_size}
