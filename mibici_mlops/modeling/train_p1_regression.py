@@ -1,7 +1,6 @@
-
-from pathlib import Path
 import hashlib
 import os
+from pathlib import Path
 import re
 import unicodedata
 
@@ -9,7 +8,6 @@ import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import pandas as pd
-
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
@@ -17,6 +15,28 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
+from mibici_mlops.config import (
+    FECHA_FIN_EXCLUSIVA,
+    FECHA_INICIO,
+    MAX_DEPTH,
+    N_ESTIMATORS,
+    RANDOM_SEED,
+)
+
+
+def log_data_manifest() -> None:
+    """Registra el manifiesto de datos como artefacto de MLflow."""
+    manifest_path = ROOT_DIR / "data" / "manifest.json"
+
+    if manifest_path.is_file():
+        mlflow.log_artifact(
+            str(manifest_path),
+            artifact_path="data_lineage",
+        )
+    else:
+        raise FileNotFoundError(
+            f"No se encontró el manifiesto de datos: {manifest_path}"
+        )
 
 # ============================================================
 # 1. CONFIGURACIÓN
@@ -26,18 +46,17 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 REPORTS_DIR = ROOT_DIR / "reports" / "figures"
 
-START_DATE = "2026-07-01"
-END_DATE = "2026-10-01"
-RANDOM_STATE = 42
+START_DATE = f"{FECHA_INICIO}-01"
+END_DATE = FECHA_FIN_EXCLUSIVA
+RANDOM_STATE = RANDOM_SEED
+MODEL_NAME = "RandomForestRegressor"
 
 EXPERIMENT_NAME = os.getenv(
     "MLFLOW_EXPERIMENT_NAME",
-    "mibici-equipo48"
+    "mibici-equipo48",
 )
 
 MODEL_NAME = "RandomForestRegressor"
-N_ESTIMATORS = 100
-MAX_DEPTH = 15
 
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -412,17 +431,30 @@ def run_experiment():
         f"sqlite:///{(ROOT_DIR / 'mlflow.db').as_posix()}",
     )
     mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment(EXPERIMENT_NAME)
+
+    from contextlib import nullcontext
+
+    active_run = mlflow.active_run()
+
+    if active_run is not None:
+        run_context = nullcontext(active_run)
+    else:
+        mlflow.set_experiment(EXPERIMENT_NAME)
+        run_context = mlflow.start_run(
+            run_name="P1_random_forest_regression"
+        )
 
     git_commit = os.getenv("GIT_COMMIT", "unknown")
 
-    with mlflow.start_run(run_name="P1_random_forest_regression"):
+    with run_context:
         mlflow.set_tags({
             "team": EXPERIMENT_NAME,
             "question": "P1",
             "git_commit": git_commit,
             "data_version": "sha256_manifest",
         })
+
+        log_data_manifest()
 
         mlflow.log_params({
             "start_date": START_DATE,
@@ -451,6 +483,16 @@ def run_experiment():
 
         mae = mean_absolute_error(y_test, predictions)
         rmse = np.sqrt(mean_squared_error(y_test, predictions))
+
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            name="modelo_regresion",
+            input_example=X_train.head(5),
+            skops_trusted_types=[
+                "numpy.dtype",
+                "sklearn.tree._tree.Tree",
+            ],
+        )
 
 
         # Evaluación por estación
