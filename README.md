@@ -144,6 +144,7 @@ La configuración de los puntos de entrada está definida en `MLproject`. El ent
 |---|---|
 | `ingest` | Ejecuta la ingesta y la generación de los datos procesados y características. |
 | `train` | Ejecuta uno de los flujos de modelado disponibles según el parámetro `question`. |
+| `experiment_p1` | Ejecuta la búsqueda de hiperparámetros y la evaluación final de P1 (regresión), registrando corridas anidadas, métricas, modelos y artefactos en MLflow. |
 
 El punto de entrada `train` admite los siguientes parámetros:
 
@@ -210,6 +211,18 @@ mlflow run . -e ingest --env-manager local
 mlflow run . -e train -P question=p1 --experiment-name mibici-equipo48 --env-manager local
 ```
 
+**Experimentación P1 — búsqueda de hiperparámetros y evaluación final:**
+
+```bash
+mlflow run . -e experiment_p1 --experiment-name mibici-equipo48 --env-manager local
+```
+
+Este punto de entrada ejecuta `mibici_mlops/modeling/experiment_p1.py`, que realiza una búsqueda de tres configuraciones de Random Forest mediante validación temporal, registra corridas anidadas en MLflow y compara los candidatos contra el modelo original utilizando un conjunto de prueba reservado.
+
+La configuración seleccionada utiliza 300 árboles y profundidad máxima de 20. En la ejecución de referencia obtuvo un MAE de validación de 0.806701 y un MAE de prueba de 0.970725.
+
+**Nota:** este comando vuelve a ejecutar todos los entrenamientos de P1 y puede tardar considerablemente. Requiere disponer de los archivos Parquet procesados correspondientes a julio, agosto y septiembre de 2026. Para consultar los resultados existentes no es necesario ejecutarlo nuevamente.
+
 **Entrenamiento del flujo P2 (clasificación):**
 
 ```bash
@@ -271,6 +284,45 @@ Una ejecución fallida puede aparecer en el experimento. Para interpretar result
 El registro de un modelo y la disponibilidad de un artefacto no implican que este se encuentre desplegado en producción. Antes de promover un modelo para uso operativo, se deben revisar sus métricas, la idoneidad del objetivo, la trazabilidad de los datos y los requisitos de despliegue y monitoreo.
 
 En particular, la etiqueta de alta demanda utilizada en el flujo P2 es un objetivo definido por el proyecto y debe interpretarse de acuerdo con su construcción. No debe considerarse automáticamente una medición directa de desabasto ni una garantía de demanda futura.
+
+#### Modelo registrado P1 — Predicción de demanda
+
+El modelo seleccionado para P1 se registró en MLflow Model Registry con la siguiente configuración:
+
+| Propiedad | Valor |
+|---|---|
+| Nombre registrado | `mibici-equipo48-p1-demanda` |
+| Versión | 1 |
+| Alias de producción | `champion` |
+| Algoritmo | RandomForestRegressor |
+| Número de árboles | 300 |
+| Profundidad máxima | 20 |
+| Experimento de origen | `mibici-equipo48` |
+| Corrida de origen | `P1_candidate_3` |
+| Commit de entrenamiento | `4cec099` |
+| Datos utilizados | MiBici Guadalajara, julio–septiembre de 2026 |
+
+**Esquema de ciclo de vida:** se utilizan aliases de MLflow Model Registry en lugar de las etapas clásicas (*Staging*, *Production* y *Archived*). El alias `champion` identifica la versión seleccionada para uso en producción y permite actualizarla sin modificar las referencias utilizadas por los consumidores del modelo.
+
+La trazabilidad de los datos se conserva mediante el archivo `data/manifest.json` asociado a la corrida, que incluye los hashes SHA-256 de los archivos procesados.
+
+**Cargar el modelo seleccionado:**
+
+```python
+import mlflow
+
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+
+model = mlflow.pyfunc.load_model(
+    "models:/mibici-equipo48-p1-demanda@champion"
+)
+
+print("Modelo champion cargado correctamente")
+```
+
+La carga mediante nombre y alias fue verificada exitosamente en el entorno local. La asignación del alias representa la selección de la versión de producción dentro del registro; no implica que exista un servicio de inferencia desplegado.
+
+Para reproducir el acceso al modelo registrado se requiere utilizar el mismo backend de MLflow Registry o disponer de una copia de sus metadatos y artefactos.
 
 ## Project Organization
 
