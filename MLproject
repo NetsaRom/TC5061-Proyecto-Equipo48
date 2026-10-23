@@ -23,3 +23,7 @@ entry_points:
       --max-depth {max_depth}
       --n-clusters {n_clusters}
       --test-size {test_size}
+
+  experiment_p1:
+    parameters: {}
+    command: "python -m mibici_mlops.modeling.experiment_p1"

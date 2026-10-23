@@ -31,5 +31,8 @@ pytest==9.1.1
 pytest-cov==7.1.0
 ruff==0.17.0
 
+skops==0.16.0
+PyYAML==6.0.3
+
 # Instalacion del paquete local
 -e .
