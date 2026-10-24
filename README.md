@@ -223,6 +223,123 @@ La configuración seleccionada utiliza 300 árboles y profundidad máxima de 20.
 
 **Nota:** este comando vuelve a ejecutar todos los entrenamientos de P1 y puede tardar considerablemente. Requiere disponer de los archivos Parquet procesados correspondientes a julio, agosto y septiembre de 2026. Para consultar los resultados existentes no es necesario ejecutarlo nuevamente.
 
+Experimentación P2 — Clasificación y evaluación de riesgo de alta demanda
+
+| Entry point | Descripción |
+|---|---|
+| `experiment_p2` | Ejecuta los experimentos de clasificación de P2 y registra corridas, métricas, modelos y artefactos en MLflow para comparar diferentes configuraciones de Random Forest contra el baseline. |
+
+**Ejecutar la experimentación P2:**
+
+```bash
+mlflow run . -e experiment_p2 --experiment-name mibici-equipo48 --env-manager local
+```
+
+Este punto de entrada ejecuta el script `mibici_mlops/modeling/experiment_p2.py`, el cual entrena y evalúa un clasificador supervisado para predecir si una estación de MiBici Guadalajara experimentará un estado de **alta demanda** (`alta_demanda = 1`) en el siguiente bloque horario.
+
+#### Configuración experimental
+
+El baseline utiliza un modelo simplificado con un número mínimo de estimadores (`n_estimators=10`, `max_depth=5`). La búsqueda de hiperparámetros evalúa tres configuraciones adicionales basadas en **Random Forest Classifier**, variando la profundidad máxima del árbol y el número de estimadores, manteniendo siempre el balanceo de pesos de clase (`class_weight="balanced"`) debido al desbalance innato del inventario operativo:
+
+- **Candidato 1:** `n_estimators=50`, `max_depth=10`
+- **Candidato 2:** `n_estimators=100`, `max_depth=15` *(Configuración óptima elegida)*
+- **Candidato 3:** `n_estimators=200`, `max_depth=20`
+
+Las configuraciones comparten el mismo vector de características operativas extraídas del archivo `features_estaciones.parquet`:
+- `promedio_duracion_salida`: Duración promedio (en segundos) de los viajes iniciados en la estación.
+- `pct_viajes_matutinos`: Proporción de viajes matutinos respecto al total diario.
+- `viajes_entrantes`: Volumen de bicicletas que arribaron a la estación en el bloque previo.
+
+#### Métricas de evaluación
+
+- **F1-Score (Clase 1):** Métrica primaria de negocio. Mide la media armónica entre Precisión y Recall para asegurar que detectamos estaciones saturadas reduciendo falsos positivos.
+- **ROC-AUC:** Evalúa la capacidad de discriminación del clasificador entre ambas clases binarias sin depender de un umbral fijo.
+- **Accuracy:** Porcentaje general de predicciones correctas sobre el set de prueba estratificado.
+- **Tiempo de entrenamiento:** Permite medir el impacto de la profundidad y volumen de árboles en el pipeline de CI/CD.
+
+#### Seguimiento con MLflow
+
+La experimentación registra una corrida padre para la búsqueda por malla (*Grid Search*) organizada como **Nested Runs**, y corridas hijas asociadas a cada combinación de hiperparámetros. El baseline se registra de forma independiente en el experimento común `mibici-equipo48`.
+
+Las etiquetas automatizadas inyectan metadatos clave para auditorías: pregunta (`question: P2`), familia del modelo (`model_family: RandomForestClassifier`), etapa de trabajo (`stage_of_work: baseline/search/candidate`), equipo, identificador del commit de Git y la firma criptográfica (SHA-256) de la versión de los datos.
+
+#### Artefactos
+
+Los archivos de salida se estructuran rigurosamente en subcarpetas dentro del artifact store de MLflow:
+
+- `data/`: Manifiesto de datos `manifest.json` y registro del conjunto estructurado de entrenamiento.
+- `plots/`: Gráfica de la matriz de confusión (`confusion_matrix.png`) correspondiente a cada corrida.
+- `config/`: Archivo original de parámetros del clasificador y configuraciones del entorno (`model_config.json`).
+
+El modelo entrenado se registra bajo el nombre de `model` en MLflow.
+
+#### Resultados observados
+
+Durante la corrida de experimentación controlada, las configuraciones obtuvieron las siguientes métricas reales en el conjunto de prueba (corte 80/20 estratificado):
+
+| Configuración | F1-Score (Clase 1) | ROC-AUC | Accuracy |
+|---|---:|---:|---:|
+| Baseline (E=10, D=5) | 0.967033 | 0.989814 | 0.968000 |
+| Candidato E=50, D=10 | 0.978261 | 0.998189 | 0.979000 |
+| **Candidato E=100, D=15** | **0.978261** | **0.999095** | **0.979000** |
+| Candidato E=200, D=20 | 0.978261 | 0.999095 | 0.979000 |
+
+El **Candidato con 100 estimadores y profundidad máxima de 15** obtuvo una mejora predictiva neta sobre el modelo base. Dado que incrementar la complejidad hacia los 200 árboles en el Candidato 3 mantiene exactamente congelado el F1-Score en `0.978261`, se selecciona la configuración intermedia por razones de economía algorítmica y eficiencia computacional.
+
+**Selección del modelo:** La configuración `E=100, D=15` es seleccionada como la candidata oficial para producción (`@champion`) dado su equilibrio óptimo entre robustez predictiva (máximo valor de **ROC-AUC: 0.999095**) y velocidad de respuesta en inferencia.
+
+**Limitación:** La etiqueta objetivo `alta_demanda` es un proxy sintético basado en registros históricos de viajes finalizados; no representa mediciones directas de la infraestructura de los candados inteligentes ni telemetría física en tiempo real de las estaciones individuales.
+
+## Registro del modelo P2 en MLflow Model Registry
+
+El modelo seleccionado para P2 (Candidato 2 con E=100 y D=15) se registró formalmente en el MLflow Model Registry para congelar su linaje y habilitar su gobernanza centralizada.
+
+### Ejecutar el registro desde la raíz
+
+Para automatizar la creación del contenedor del modelo, inyectar las descripciones técnicas y asignarle el alias lógico de producción, ejecuta el script ubicado en la raíz del repositorio con el entorno virtual activado:
+
+```bash
+python register_p2_model.py
+```
+
+### Configuración de gobernanza registrada
+
+El script aplica la siguiente configuración en el servidor de tracking local:
+
+| Propiedad | Valor |
+|---|---|
+| **Nombre registrado** | `mibici-equipo48-p2-riesgo` |
+| **Versión** | 1 |
+| **Alias de producción** | `champion` |
+| **Algoritmo** | RandomForestClassifier |
+| **Número de árboles (E)** | 100 |
+| **Profundidad máxima (D)** | 15 |
+| **Experimento de origen** | `mibici-equipo48` |
+| **Corrida de origen (Run ID)** | `a325a202aa4447158aec1ce49bdf69d0` |
+| **Datos utilizados** | `features_estaciones.parquet` (Julio–Septiembre de 2026) |
+
+**Esquema de ciclo de vida:** Al igual que en los flujos P1 y P3, se utiliza el esquema moderno de **Aliases de MLflow** en lugar de las etapas clásicas (*Staging*/*Production*). El alias `champion` identifica de forma agnóstica la versión de producción activa. Esto permite que cualquier aplicación cliente consuma el modelo consumiendo una etiqueta lógica fija, facilitando estrategias de despliegue continuo (CD) sin alterar código estático.
+
+### Cargar el modelo seleccionado
+
+La carga y validez del modelo mediante su nombre y alias lógico fue verificada exitosamente mediante una prueba de humo (*smoke test*) dentro del entorno local. Para consumir el clasificador desde cualquier script de Python, utiliza la siguiente estructura de código:
+
+```python
+import mlflow
+
+# Sincronizar con el servidor y backend de base de datos local
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+
+# Carga directa mediante URI estructurada con alias lógico
+model_p2 = mlflow.pyfunc.load_model(
+    "models:/mibici-equipo48-p2-riesgo@champion"
+)
+
+print("Modelo de clasificación champion (P2) cargado correctamente.")
+```
+
+La asignación de este alias representa la selección oficial de la versión de producción dentro del registro y bloquea su linaje completo (asociando los metadatos al commit actual de Git y al hash SHA-256 del manifiesto de datos), pero no implica la existencia de un servicio de inferencia HTTP o REST activo.
+
 ### Experimentación P3 — Clustering y evaluación de estaciones
 
 | Entry point | Descripción |
