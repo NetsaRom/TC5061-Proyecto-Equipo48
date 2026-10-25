@@ -12,6 +12,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from mlflow.models import infer_signature
 
 from mibici_mlops.config import (
     FECHA_FIN_EXCLUSIVA,
@@ -268,10 +269,18 @@ def run_experiment():
         })
 
         # Registrar el modelo entrenado
+        input_example = data[features].head(5)
+
+        signature = infer_signature(
+            input_example,
+            model.predict(input_example)
+        )
+
         mlflow.sklearn.log_model(
             sk_model=model,
             name="modelo_kmeans",
-            input_example=data[features].head(5),
+            signature=signature,
+            input_example=input_example,
         )
 
         # Generación de la gráfica de visualización de perfiles

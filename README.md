@@ -223,6 +223,99 @@ La configuración seleccionada utiliza 300 árboles y profundidad máxima de 20.
 
 **Nota:** este comando vuelve a ejecutar todos los entrenamientos de P1 y puede tardar considerablemente. Requiere disponer de los archivos Parquet procesados correspondientes a julio, agosto y septiembre de 2026. Para consultar los resultados existentes no es necesario ejecutarlo nuevamente.
 
+### Experimentación P3 — Clustering y evaluación de estaciones
+
+| Entry point | Descripción |
+|---|---|
+| `experiment_p3` | Ejecuta los experimentos de clustering de P3 y registra corridas, métricas, modelos y artefactos en MLflow para comparar diferentes configuraciones de K-Means contra el baseline. |
+
+**Ejecutar la experimentación P3:**
+
+```bash
+mlflow run . -e experiment_p3 --experiment-name mibici-equipo48 --env-manager local
+```
+
+Este punto de entrada ejecuta `mibici_mlops/modeling/experiment_p3.py`, que analiza patrones agregados de uso de las estaciones de MiBici Guadalajara mediante técnicas de clustering.
+
+#### Configuración experimental
+
+El baseline utiliza cuatro clusters (`n_clusters=4`). La búsqueda de hiperparámetros evalúa tres configuraciones adicionales: `n_clusters=3`, `n_clusters=5` y `n_clusters=6`.
+
+Las configuraciones utilizan las mismas características:
+
+- `viajes_salientes`: cantidad de viajes que comienzan en cada estación.
+- `promedio_duracion_salida`: duración promedio de los viajes por estación.
+- `pct_viajes_matutinos`: proporción de viajes que comienzan entre las 6:00 y las 9:59.
+
+El periodo de datos se define mediante `FECHA_INICIO` y `FECHA_FIN_EXCLUSIVA` en la configuración del proyecto.
+
+#### Métricas de evaluación
+
+- **Silhouette Score:** evalúa la cohesión y separación de los clusters. Generalmente, un valor más alto es preferible.
+- **Davies–Bouldin Index:** evalúa la similitud entre clusters considerando su dispersión y separación. Generalmente, un valor más bajo es preferible.
+- **Inertia:** mide la suma de las distancias cuadráticas de las observaciones a sus centroides.
+- **Tiempo de entrenamiento:** permite comparar el costo computacional de las configuraciones.
+
+#### Seguimiento con MLflow
+
+La experimentación registra una corrida padre para la búsqueda de hiperparámetros y corridas hijas para cada candidato. También registra el baseline en el experimento `mibici-equipo48`.
+
+Las etiquetas permiten identificar la pregunta (`question`), familia del modelo (`model_family`), etapa de trabajo (`stage_of_work`), equipo, commit y versión de los datos.
+
+Cada corrida registra el modelo mediante MLflow, incluyendo su firma y ejemplo de entrada, las métricas obtenidas y los artefactos asociados.
+
+#### Artefactos
+
+Los artefactos se organizan en las siguientes subcarpetas:
+
+- `data/`: manifiesto de los datos de origen y registro del conjunto de características utilizado.
+- `plots/`: gráficas de segmentación de las estaciones por configuración.
+- `config/`: parámetros y configuración de cada corrida.
+
+El modelo entrenado se registra como `modelo_kmeans` en MLflow.
+
+#### Resultados observados
+
+En la ejecución registrada, las configuraciones obtuvieron los siguientes resultados:
+
+| Configuración | Silhouette | Davies–Bouldin | Inertia |
+|---|---:|---:|---:|
+| Baseline K=4 | 0.2980 | 1.0295 | 601.3641 |
+| Candidato K=3 | 0.3164 | 1.0462 | 752.5850 |
+| Candidato K=5 | 0.2843 | 1.0341 | 516.5396 |
+| Candidato K=6 | 0.2563 | 1.0481 | 453.1361 |
+
+K=3 obtuvo el mayor Silhouette Score, mientras que K=4 obtuvo el menor Davies–Bouldin Index. Estos resultados no determinan por sí solos el mejor modelo; también se deben analizar los perfiles de las estaciones y su utilidad operativa.
+
+**Selección del modelo:** K=3 se considera el candidato preferido según Silhouette, sujeto a la revisión de los perfiles de los clusters y a una evaluación adecuada para el uso previsto.
+
+**Limitación:** las métricas actuales se calculan sobre las mismas estaciones utilizadas para ajustar K-Means. Para afirmar que existe una evaluación temporal independiente, será necesario implementar y documentar un procedimiento de evaluación con periodos separados.
+
+Registrar un modelo en MLflow no implica que esté desplegado en un servicio de inferencia.
+
+## Registro del modelo P3 en MLflow Model Registry
+
+El modelo seleccionado para P3 se registró en MLflow Model Registry con la siguiente configuración:
+
+| Propiedad | Valor |
+|---|---|
+| Nombre registrado | `mibici-equipo48-p3-grupos` |
+| Versión | 2 |
+| Alias | `champion` |
+| Algoritmo | K-Means |
+| Número de clústeres | 3 |
+| Experimento de origen | `mibici-equipo48` |
+| Corrida de origen | `P3_candidate_k3` |
+| Datos utilizados | MiBici Guadalajara, julio–septiembre de 2026 |
+
+**Esquema de ciclo de vida:** se utilizan aliases de MLflow Model Registry en lugar de las etapas clásicas (*Staging*, *Production* y *Archived*). El alias `champion` identifica la versión seleccionada y permite actualizarla sin modificar las referencias utilizadas por los consumidores del modelo.
+
+La versión registrada incluye el esquema de entrada con tres características: viajes salientes, duración promedio de salida y porcentaje de viajes matutinos. El modelo devuelve las etiquetas de clúster asignadas a las observaciones.
+
+La carga del modelo mediante el alias `champion` se verificó exitosamente en el entorno local. Esta asignación identifica la versión seleccionada dentro del registro, pero no implica que exista un servicio de inferencia desplegado.
+
+La trazabilidad debe complementarse con la revisión del commit de entrenamiento y el manifiesto de datos asociado a la corrida de origen.
+
 **Entrenamiento del flujo P2 (clasificación):**
 
 ```bash
