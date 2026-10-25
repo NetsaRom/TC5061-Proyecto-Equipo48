@@ -293,6 +293,29 @@ K=3 obtuvo el mayor Silhouette Score, mientras que K=4 obtuvo el menor Davies–
 
 Registrar un modelo en MLflow no implica que esté desplegado en un servicio de inferencia.
 
+## Registro del modelo P3 en MLflow Model Registry
+
+El modelo seleccionado para P3 se registró en MLflow Model Registry con la siguiente configuración:
+
+| Propiedad | Valor |
+|---|---|
+| Nombre registrado | `mibici-equipo48-p3-grupos` |
+| Versión | 2 |
+| Alias | `champion` |
+| Algoritmo | K-Means |
+| Número de clústeres | 3 |
+| Experimento de origen | `mibici-equipo48` |
+| Corrida de origen | `P3_candidate_k3` |
+| Datos utilizados | MiBici Guadalajara, julio–septiembre de 2026 |
+
+**Esquema de ciclo de vida:** se utilizan aliases de MLflow Model Registry en lugar de las etapas clásicas (*Staging*, *Production* y *Archived*). El alias `champion` identifica la versión seleccionada y permite actualizarla sin modificar las referencias utilizadas por los consumidores del modelo.
+
+La versión registrada incluye el esquema de entrada con tres características: viajes salientes, duración promedio de salida y porcentaje de viajes matutinos. El modelo devuelve las etiquetas de clúster asignadas a las observaciones.
+
+La carga del modelo mediante el alias `champion` se verificó exitosamente en el entorno local. Esta asignación identifica la versión seleccionada dentro del registro, pero no implica que exista un servicio de inferencia desplegado.
+
+La trazabilidad debe complementarse con la revisión del commit de entrenamiento y el manifiesto de datos asociado a la corrida de origen.
+
 **Entrenamiento del flujo P2 (clasificación):**
 
 ```bash
