@@ -27,3 +27,7 @@ entry_points:
   experiment_p1:
     parameters: {}
     command: "python -m mibici_mlops.modeling.experiment_p1"
+
+  experiment_p3:
+    parameters: {}
+    command: "python -m mibici_mlops.modeling.experiment_p3"
