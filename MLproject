@@ -36,6 +36,6 @@ entry_points:
     parameters: {}
     command: "python -m mibici_mlops.modeling.experiment_p3"
 
-    register_p2_model:
+  register_p2_model:
     parameters: {}
     command: "python register_p2_model.py"

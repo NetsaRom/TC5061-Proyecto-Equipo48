@@ -1,25 +1,25 @@
 MiBici - P2: Clasificación de alta demanda
 
 Experimento: mibici-equipo48
-Commit: ef74bcba3a85a3f09c90c116b2229d893bbcd7d6
-Versión del manifiesto: 793be2ca05e12baa279efd2d1f94242fdede5f9b904e9e62da1bff19b1bd8c00
-Accuracy: 0.9362
-F1-score: 0.9375
-ROC-AUC: 0.9808
+Commit: 7cffb118fc8b8be0a3640a1b9f069bfb2b1c9b2a
+Versión del manifiesto: d333fcc015f6a91f3a1431b6c5517acf37bea81be3116ed19887d63ef07ba66c
+Accuracy: 0.9681
+F1-score: 0.9684
+ROC-AUC: 0.9973
 
 Matriz de confusión (clases 0, 1):
-[[43  4]
- [ 2 45]]
+[[45  2]
+ [ 1 46]]
 
 Reporte de clasificación:
               precision    recall  f1-score   support
 
-           0       0.96      0.91      0.93        47
-           1       0.92      0.96      0.94        47
+           0       0.98      0.96      0.97        47
+           1       0.96      0.98      0.97        47
 
-    accuracy                           0.94        94
-   macro avg       0.94      0.94      0.94        94
-weighted avg       0.94      0.94      0.94        94
+    accuracy                           0.97        94
+   macro avg       0.97      0.97      0.97        94
+weighted avg       0.97      0.97      0.97        94
 
 
 Limitación: la etiqueta alta_demanda es un proxy sintético basado en la demanda observada; no representa mediciones reales de inventario ni confirma desabasto de bicicletas.
