@@ -1,0 +1,45 @@
+{
+  "baseline": {
+    "run_name": "p3_baseline",
+    "n_clusters": 4,
+    "silhouette_score": 0.2980023927308169,
+    "davies_bouldin_index": 1.0294925565874655,
+    "inertia": 601.3641346825342,
+    "training_time_seconds": 0.1238111000002391
+  },
+  "candidates": [
+    {
+      "run_name": "P3_candidate_k3",
+      "n_clusters": 3,
+      "silhouette_score": 0.31643079748347874,
+      "davies_bouldin_index": 1.0462377679429855,
+      "inertia": 752.5849901181259,
+      "training_time_seconds": 0.059585400000287336
+    },
+    {
+      "run_name": "P3_candidate_k5",
+      "n_clusters": 5,
+      "silhouette_score": 0.284345565453447,
+      "davies_bouldin_index": 1.0340601135986525,
+      "inertia": 516.539611426617,
+      "training_time_seconds": 0.04138469999998051
+    },
+    {
+      "run_name": "P3_candidate_k6",
+      "n_clusters": 6,
+      "silhouette_score": 0.2563090864058262,
+      "davies_bouldin_index": 1.0480689711750821,
+      "inertia": 453.1360888115746,
+      "training_time_seconds": 0.06163920000108192
+    }
+  ],
+  "selected_candidate": {
+    "run_name": "P3_candidate_k3",
+    "n_clusters": 3,
+    "silhouette_score": 0.31643079748347874,
+    "davies_bouldin_index": 1.0462377679429855,
+    "inertia": 752.5849901181259,
+    "training_time_seconds": 0.059585400000287336
+  },
+  "selection_rule": "Mayor Silhouette; en caso de empate, menor Davies-Bouldin. La selección debe revisarse también por interpretabilidad de los perfiles y utilidad para el negocio."
+}
