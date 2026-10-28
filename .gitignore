@@ -219,3 +219,28 @@ mlflow.db-*
 # Archivos temporales
 *.tmp
 *.bak
+# ==========================================
+# Seguridad: secretos y credenciales
+# ==========================================
+
+# Variables de entorno y configuraciones locales
+.env.*
+!.env.example
+!.env.template
+
+# Claves privadas y certificados locales
+*.pem
+*.key
+*.p12
+*.pfx
+*.secret
+
+# Archivos locales de credenciales
+credentials.json
+secrets.json
+secrets.yaml
+secrets.yml
+
+# MLflow: base de datos de tracking local
+mlflow-tracking.db
+mlflow-tracking.db-*

@@ -180,3 +180,14 @@ Para consultar los detalles técnicos de cada enfoque, incluyendo objetivos, pre
 
 --------
 
+
+## Chequeos básicos de seguridad
+
+El proyecto incorpora verificaciones de seguridad para revisar las dependencias de Python, analizar estáticamente el código y reducir el riesgo de versionar credenciales o archivos locales.
+
+### Herramientas
+
+Instala las herramientas en el entorno virtual del proyecto:
+
+```bash
+python -m pip install pip-audit bandit
