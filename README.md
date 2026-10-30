@@ -578,4 +578,14 @@ Para reproducir el acceso al modelo registrado se requiere utilizar el mismo bac
 - No versionar bases de datos de tracking ni artefactos generados localmente.
 - Documentar cualquier cambio en la fuente de datos, el periodo de análisis o la definición de las variables objetivo.
 
-**Nota sobre los conteos de datos:** Los resultados de referencia de la ingesta y los conteos leídos por cada flujo de modelado pueden diferir por filtros, registros válidos, transformaciones o por el conjunto de estaciones representado en las características. Antes de comparar esos conteos, verifica el manifiesto de datos y la lógica de preparación utilizada por cada flujo.
+
+## Chequeos básicos de seguridad
+
+El proyecto incorpora verificaciones de seguridad para revisar las dependencias de Python, analizar estáticamente el código y reducir el riesgo de versionar credenciales o archivos locales.
+
+### Herramientas
+
+Instala las herramientas en el entorno virtual del proyecto:
+
+```bash
+python -m pip install pip-audit bandit
