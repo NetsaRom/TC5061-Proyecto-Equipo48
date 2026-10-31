@@ -244,3 +244,8 @@ secrets.yml
 # MLflow: base de datos de tracking local
 mlflow-tracking.db
 mlflow-tracking.db-*
+.venv-deepchecks/
+
+# Reportes HTML generados por Deepchecks
+reports/deepchecks_data_drift.html
+reports/deepchecks_quality_report.html
