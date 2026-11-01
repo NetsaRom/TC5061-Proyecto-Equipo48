@@ -1,0 +1,13 @@
+# Dependencias para validacion de datos con Deepchecks
+# Entorno probado con Python 3.11
+
+deepchecks==0.19.1
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+category-encoders==2.6.3
+pyarrow==17.0.0
+setuptools==80.9.0
+anywidget==0.11.0
+python-dotenv==1.2.4
+loguru==0.7.3

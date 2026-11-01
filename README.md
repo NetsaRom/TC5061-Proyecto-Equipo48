@@ -534,6 +534,227 @@ La carga mediante nombre y alias fue verificada exitosamente en el entorno local
 
 Para reproducir el acceso al modelo registrado se requiere utilizar el mismo backend de MLflow Registry o disponer de una copia de sus metadatos y artefactos.
 
+## Validación de calidad de datos con Deepchecks
+
+Como parte de las prácticas de calidad y confiabilidad del proyecto
+MiBici MLOps, se implementaron validaciones automatizadas utilizando
+Deepchecks y pandas.
+
+Las verificaciones se realizan sobre los conjuntos de entrenamiento
+y prueba preparados para el modelo P1 (regresión), correspondientes
+a los registros de MiBici Guadalajara de julio a septiembre de 2026.
+
+Las validaciones implementadas incluyen:
+
+- **Tipos de datos:** comparación de los tipos de las variables entre
+  los conjuntos de entrenamiento y prueba.
+- **Valores faltantes:** identificación y cuantificación de datos nulos.
+- **Registros duplicados:** detección de filas con características repetidas.
+- **Data drift:** comparación de las distribuciones de las variables
+  entre entrenamiento y prueba mediante Deepchecks.
+
+El análisis permite identificar posibles problemas de calidad y cambios
+en las distribuciones de los datos antes de utilizar los conjuntos
+en procesos de modelado.
+
+Estas verificaciones no requieren volver a entrenar el modelo Random Forest.
+
+### Instalación de Deepchecks
+
+Para evitar conflictos con las dependencias del entorno principal,
+las validaciones de Deepchecks se ejecutan en un entorno virtual
+independiente con Python 3.11.
+
+Desde la raíz del repositorio, crear el entorno:
+
+```bash
+python3.11 -m venv .venv-deepchecks
+```
+
+Activar el entorno en macOS o Linux:
+
+```bash
+source .venv-deepchecks/bin/activate
+```
+
+En Windows (PowerShell):
+
+```powershell
+.venv-deepchecks\Scripts\Activate.ps1
+```
+
+Instalar las dependencias específicas:
+
+```bash
+python -m pip install -r requirements-deepchecks.txt
+```
+
+Verificar que no existan conflictos entre las dependencias instaladas:
+
+```bash
+python -m pip check
+```
+
+El archivo `requirements-deepchecks.txt` contiene las versiones
+utilizadas durante las pruebas de validación.
+
+**Nota:** El entorno de Deepchecks es independiente del entorno
+principal `.venv`. No es necesario volver a entrenar los modelos
+para ejecutar las verificaciones de calidad de datos.
+
+### Preparación de datos para Deepchecks
+
+Las validaciones utilizan los conjuntos de características de
+entrenamiento y prueba del modelo P1 (regresión).
+
+Antes de ejecutar Deepchecks, es necesario generar estos archivos
+a partir de los datos procesados de MiBici.
+
+Desde la raíz del proyecto, ejecutar con el entorno principal:
+
+```bash
+.venv/bin/python -m mibici_mlops.export_deepchecks_data
+```
+
+Este comando reutiliza la función `prepare_data()` del modelo P1,
+realiza la división cronológica de los datos y genera:
+
+- `data/interim/deepchecks_X_train.parquet`
+- `data/interim/deepchecks_X_test.parquet`
+
+En la ejecución de referencia se obtuvieron:
+
+| Conjunto | Registros | Características |
+|---|---:|---:|
+| Entrenamiento | 795,977 | 9 |
+| Prueba | 205,920 | 9 |
+
+Los archivos Parquet no se versionan en Git debido a su tamaño,
+por lo que deben generarse localmente.
+
+**Requisito:** disponer previamente de los datos procesados
+correspondientes a julio, agosto y septiembre de 2026.
+
+**Importante:** este procedimiento únicamente prepara y exporta
+los datos. No entrena modelos ni modifica los experimentos de MLflow.
+
+### Ejecución de las validaciones con Deepchecks
+
+Una vez generados los archivos Parquet, activar el entorno
+`.venv-deepchecks` y ejecutar desde la raíz del proyecto:
+
+```bash
+python -m mibici_mlops.data_validation_deepchecks
+```
+
+El script realiza las siguientes verificaciones:
+
+1. Consistencia de tipos de datos entre entrenamiento y prueba.
+2. Identificación y cuantificación de valores faltantes.
+3. Detección de filas con características duplicadas.
+4. Análisis de cambios en las distribuciones de las variables
+   entre entrenamiento y prueba (data drift).
+5. Ejecución de una suite de calidad de datos con Deepchecks.
+
+Al finalizar, se generan dos reportes HTML:
+
+- `reports/deepchecks_data_drift.html`: análisis de cambios
+  en las distribuciones de las características.
+- `reports/deepchecks_quality_report.html`: resultados de
+  la suite de validación de calidad.
+
+Los reportes pueden abrirse en un navegador web para consultar
+las tablas y visualizaciones generadas por Deepchecks.
+
+**Nota:** el análisis de drift utiliza muestras reproducibles
+de 10,000 registros por conjunto, con `random_state=42`,
+para reducir el tiempo de ejecución.
+
+Las validaciones no requieren entrenar nuevamente los modelos.
+
+### Resultados de las validaciones de calidad
+
+Las verificaciones se ejecutaron sobre 795,977 registros de
+entrenamiento y 205,920 registros de prueba, utilizando
+nueve características del modelo P1.
+
+**Consistencia de tipos de datos**
+
+Las nueve características presentaron tipos de datos
+consistentes entre entrenamiento y prueba.
+
+**Valores faltantes**
+
+| Variable | Entrenamiento | Prueba |
+|---|---:|---:|
+| `viajes_lag_24` | 10,800 | 9 |
+| `viajes_lag_168` | 78,336 | 153 |
+
+Los valores faltantes se concentran en características
+históricas (lags), que requieren observaciones anteriores
+para calcularse.
+
+El pipeline de P1 contempla un imputador de mediana para
+las características numéricas.
+
+**Filas con características duplicadas**
+
+| Conjunto | Filas duplicadas | Porcentaje |
+|---|---:|---:|
+| Entrenamiento | 24,053 | 3.02 % |
+| Prueba | 3,223 | 1.57 % |
+
+Estos resultados corresponden a filas con valores repetidos
+en las nueve características analizadas. No necesariamente
+representan registros originales duplicados, ya que la
+identificación temporal no forma parte de estas características.
+
+**Análisis de data drift**
+
+Deepchecks identificó el mayor cambio de distribución en
+la variable `mes`, con un estadístico aproximado de 0.8322.
+
+Este resultado es consistente con la división cronológica
+de los datos: el entrenamiento incluye julio, agosto y parte
+de septiembre, mientras que el conjunto de prueba contiene
+observaciones de septiembre.
+
+El drift detectado requiere interpretación, pero no constituye
+por sí mismo evidencia de un error en el modelo.
+
+**Consideración metodológica**
+
+Los conteos de valores faltantes y duplicados anteriores
+se calcularon sobre los conjuntos completos.
+
+La suite de Deepchecks utiliza muestras de 10,000 registros
+por conjunto. Por ello, sus porcentajes de duplicados pueden
+diferir de los obtenidos mediante pandas sobre todos los datos.
+
+### Evidencias de ejecución de Deepchecks
+
+Las siguientes imágenes corresponden a los reportes generados
+durante la ejecución de las validaciones de calidad de datos.
+
+**1. Detección de registros duplicados**
+
+![Duplicados detectados en entrenamiento](reports/evidencias/deepchecks_duplicados_train.png)
+
+**2. Identificación de valores faltantes**
+
+![Valores faltantes en entrenamiento](reports/evidencias/deepchecks_nulos_train.png)
+
+**3. Análisis de Data Drift**
+
+![Cambio de distribución de la variable mes](reports/evidencias/deepchecks_drift_mes.png)
+
+El análisis de drift identificó una diferencia importante en la
+distribución de la variable `mes` (estadístico KS ≈ 0.8322),
+asociada a la división cronológica entre entrenamiento y prueba.
+
+Los reportes HTML completos pueden generarse localmente mediante
+el script `mibici_mlops/data_validation_deepchecks.py`.
+
 ## Project Organization
 
 ```text
