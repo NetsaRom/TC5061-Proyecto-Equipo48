@@ -332,6 +332,68 @@ def build_features(trips):
 # ============================================================
 # 5. BASELINE Y MODELO
 # ============================================================
+def build_model(
+    features,
+    n_estimators=N_ESTIMATORS,
+    max_depth=MAX_DEPTH,
+    random_state=RANDOM_STATE,
+    n_jobs=-1
+):
+    """Construye el pipeline de preprocesamiento y Random Forest."""
+
+    categorical = ["estacion"]
+    numeric = [col for col in features if col not in categorical]
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            (
+                "station",
+                OneHotEncoder(handle_unknown="ignore"),
+                categorical,
+            ),
+            (
+                "numeric",
+                Pipeline([
+                    ("imputer", SimpleImputer(strategy="median"))
+                ]),
+                numeric,
+            ),
+        ]
+    )
+
+    model = Pipeline([
+        ("preprocessor", preprocessor),
+        (
+            "regressor",
+            RandomForestRegressor(
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                random_state=random_state,
+                n_jobs=n_jobs,
+            ),
+        ),
+    ])
+
+    return model
+
+
+def evaluate_model(model, X_train, y_train, X_test, y_test):
+    """Entrena el modelo y calcula métricas de evaluación."""
+
+    model.fit(X_train, y_train)
+
+    predictions = model.predict(X_test)
+
+    mae = mean_absolute_error(y_test, predictions)
+    rmse = np.sqrt(mean_squared_error(y_test, predictions))
+
+    metrics = {
+        "test_mae": float(mae),
+        "test_rmse": float(rmse),
+    }
+
+    return metrics, predictions
+
 
 def run_experiment():
     trips, file_hashes = load_trips()
@@ -389,38 +451,8 @@ def run_experiment():
         mean_squared_error(y_test, baseline_predictions)
     )
 
-    categorical = ["estacion"]
-    numeric = [col for col in features if col not in categorical]
+    model = build_model(features)
 
-    preprocessor = ColumnTransformer(
-        transformers=[
-            (
-                "station",
-                OneHotEncoder(handle_unknown="ignore"),
-                categorical,
-            ),
-            (
-                "numeric",
-                Pipeline([
-                    ("imputer", SimpleImputer(strategy="median"))
-                ]),
-                numeric,
-            ),
-        ]
-    )
-
-    model = Pipeline([
-        ("preprocessor", preprocessor),
-        (
-            "regressor",
-            RandomForestRegressor(
-                n_estimators=N_ESTIMATORS,
-                max_depth=MAX_DEPTH,
-                random_state=RANDOM_STATE,
-                n_jobs=-1,
-            ),
-        ),
-    ])
 
     # ========================================================
     # 6. REGISTRO EN MLFLOW
@@ -478,11 +510,16 @@ def run_experiment():
             "baseline_test_rmse": baseline_rmse,
         })
 
-        model.fit(X_train, y_train)
-        predictions = model.predict(X_test)
+        metrics, predictions = evaluate_model(
+            model,
+            X_train,
+            y_train,
+            X_test,
+            y_test
+        )
 
-        mae = mean_absolute_error(y_test, predictions)
-        rmse = np.sqrt(mean_squared_error(y_test, predictions))
+        mae = metrics["test_mae"]
+        rmse = metrics["test_rmse"]
 
         mlflow.sklearn.log_model(
             sk_model=model,
