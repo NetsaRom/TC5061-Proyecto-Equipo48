@@ -14,6 +14,10 @@ def generar_caracteristicas(
     """Genera variables de ingeniería de características por estación."""
     logger.info(f"Cargando datos para feature engineering: {input_path}")
     df = pl.read_parquet(input_path).filter(pl.col("duracion_atipica") == False)
+    if df.is_empty():
+        raise ValueError(
+            "No hay viajes válidos para generar características."
+        )
 
     # Extraer componentes de tiempo para enriquecer las características
     df = df.with_columns([
