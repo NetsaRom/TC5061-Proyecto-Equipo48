@@ -534,6 +534,72 @@ La carga mediante nombre y alias fue verificada exitosamente en el entorno local
 
 Para reproducir el acceso al modelo registrado se requiere utilizar el mismo backend de MLflow Registry o disponer de una copia de sus metadatos y artefactos.
 
+## Pruebas unitarias y validación del código
+
+El proyecto incorpora pruebas unitarias utilizando **PyTest**, con el propósito de verificar el correcto funcionamiento de los principales componentes del pipeline de Machine Learning.
+
+Las pruebas se encuentran organizadas en la carpeta `tests/` y cubren tres áreas principales:
+
+| Archivo | Componente evaluado | Pruebas |
+|---|---|---:|
+| `test_dataset.py` | Procesamiento y validación de datos | 6 |
+| `test_features.py` | Ingeniería de características | 4 |
+| `test_training.py` | Entrenamiento y evaluación del modelo | 3 |
+| **Total** | | **13** |
+
+### Ejecución de las pruebas
+
+Para ejecutar las pruebas, primero se debe activar el entorno virtual del proyecto.
+
+En Windows PowerShell:
+
+```bash
+.venv\Scripts\Activate.ps1
+```
+
+Posteriormente, ejecutar:
+
+```bash
+python -m pytest tests/ -v
+```
+
+Para generar un reporte de cobertura:
+
+```bash
+python -m pytest tests/ -v --cov=mibici_mlops --cov-report=term-missing
+```
+
+### Validaciones realizadas
+
+Las pruebas verifican:
+
+- Lectura, limpieza y validación de los datos.
+- Generación de características por estación.
+- Manejo de archivos inexistentes y conjuntos de datos vacíos.
+- Construcción y evaluación del modelo Random Forest.
+- Reproducibilidad del entrenamiento mediante el uso de una semilla fija (`random_state`).
+
+### Evidencia de ejecución
+
+Se incluyen capturas de pantalla de la ejecución exitosa de PyTest, mostrando los resultados de las pruebas correspondientes a procesamiento de datos, ingeniería de características y entrenamiento del modelo.
+
+#### Ejecución test_dataset.py
+![alt text](/tests/imagenes-evidencia/test-dataset.png)
+
+#### Ejecución test_features.py 
+
+![alt text](/tests/imagenes-evidencia/test-features.png)
+
+#### Ejecución test_training.py 
+
+![alt text](/tests/imagenes-evidencia/test-training.png)
+
+#### Resultados de cobertura de código con pruebas unitarias
+
+La ejecución de las pruebas unitarias mediante PyTest permitió obtener 16 pruebas aprobadas, sin errores, en un tiempo de 24.51 segundos. El reporte de cobertura mostró un 12% de cobertura global del paquete mibici_mlops
+
+![alt text](/tests/imagenes-evidencia/cobertura.png)
+
 ## Validación de calidad de datos con Deepchecks
 
 Como parte de las prácticas de calidad y confiabilidad del proyecto
