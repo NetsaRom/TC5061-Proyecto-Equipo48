@@ -916,6 +916,36 @@ Respuesta obtenida en la prueba:
 
 **Nota:** Se requieren dos terminales abiertas simultáneamente: una para MLflow Server y otra para MLflow Model Serving. Los comandos de verificación e inferencia se ejecutan en una tercera terminal.
 
+## Despliegue de API REST - Modelo P2
+
+### Antes de la ejecución
+
+Para poder construir y ejecutar la API REST de MiBici dentro de un contenedor, primero es necesario instalar y configurar **WSL 2 y Podman Desktop en Windows**.
+
+Sigue la siguiente guía para preparar tu entorno:
+
+[Instalación y configuración de WSL 2 y Podman en Windows](INSTALACION_PODMAN_WINDOWS.md)
+
+Una vez que hayas terminado la instalación, continúa con los pasos de este documento para instalar las dependencias, construir la imagen del contenedor y ejecutar la API REST.
+
+**Importante:** Para realizar las pruebas, también debe estar disponible el servicio de MLflow Model Serving, ya que la API se comunica con él para obtener las predicciones.
+
+### Ejecución API
+
+Se implementó una API REST utilizando **FastAPI**, integrada con **MLflow Model Serving** y desplegada mediante un contenedor **Podman**.
+
+La API permite realizar predicciones de alta demanda en estaciones de MiBici utilizando el modelo de clasificación P2 registrado en MLflow Model Registry.
+
+**Componentes principales:**
+- FastAPI: recepción y validación de solicitudes HTTP.
+- MLflow Model Serving: ejecución del modelo registrado.
+- Podman: construcción y ejecución del contenedor de la API.
+
+La implementación utiliza una arquitectura de dos servicios: FastAPI se ejecuta en el contenedor Podman, mientras que MLflow Model Serving proporciona el servicio de inferencia.
+
+Para consultar la configuración, construcción, ejecución, endpoints y pruebas, revisar la siguiente documentación:
+
+📄 [Documentación del despliegue de la API REST (FastAPI y Podman)](api/README.md)
 
 ## Project Organization
 
@@ -972,3 +1002,5 @@ Instala las herramientas en el entorno virtual del proyecto:
 
 ```bash
 python -m pip install pip-audit bandit
+
+
