@@ -821,6 +821,132 @@ asociada a la división cronológica entre entrenamiento y prueba.
 Los reportes HTML completos pueden generarse localmente mediante
 el script `mibici_mlops/data_validation_deepchecks.py`.
 
+## Ejecución de MLflow Model Serving – P2
+
+### 1. Activar el entorno virtual
+
+En Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+### 2. Configurar MLflow
+
+```powershell
+$env:MLFLOW_TRACKING_URI="http://127.0.0.1:5000"
+```
+
+### 3. Iniciar el servidor de MLflow
+
+Abrir una terminal y ejecutar:
+
+```powershell
+mlflow server --host 127.0.0.1 --port 5000
+```
+
+Mantener esta terminal abierta.
+
+### 4. Iniciar MLflow Model Serving
+
+Abrir una segunda terminal:
+
+```powershell
+$env:MLFLOW_TRACKING_URI="http://127.0.0.1:5000"
+
+mlflow models serve `
+  -m "models:/mibici-equipo48-p2-riesgo@champion" `
+  --host 127.0.0.1 `
+  --port 5001 `
+  --env-manager local
+```
+
+El servicio queda disponible en:
+
+`http://127.0.0.1:5001`
+
+### 5. Verificar disponibilidad del servicio
+
+```powershell
+curl.exe -i http://127.0.0.1:5001/ping
+```
+
+Respuesta esperada:
+
+```text
+HTTP/1.1 200 OK
+```
+
+### 6. Generar los datos de entrada
+
+Ejecutar el script que genera el archivo `input.json` a partir de las características procesadas:
+
+```powershell
+python generar_input.py
+```
+
+### 7. Ejecutar la prueba de inferencia
+
+```powershell
+curl.exe -X POST http://127.0.0.1:5001/invocations `
+  -H "Content-Type: application/json" `
+  --data-binary "@input.json"
+```
+
+Respuesta obtenida en la prueba:
+
+```json
+{
+  "predictions": [0, 1, 1]
+}
+```
+
+### Información del modelo servido
+
+| Propiedad | Valor |
+|---|---|
+| Modelo | `mibici-equipo48-p2-riesgo` |
+| Alias | `champion` |
+| Versión de modelo | Consultar en MLflow Registry |
+| Algoritmo | Random Forest Classifier |
+| Número de árboles | 200 |
+| Profundidad máxima | 20 |
+| Semilla | 42 |
+| Puerto de servicio | 5001 |
+
+**Nota:** Se requieren dos terminales abiertas simultáneamente: una para MLflow Server y otra para MLflow Model Serving. Los comandos de verificación e inferencia se ejecutan en una tercera terminal.
+
+## Despliegue de API REST - Modelo P2
+
+### Antes de la ejecución
+
+Para poder construir y ejecutar la API REST de MiBici dentro de un contenedor, primero es necesario instalar y configurar **WSL 2 y Podman Desktop en Windows**.
+
+Sigue la siguiente guía para preparar tu entorno:
+
+[Instalación y configuración de WSL 2 y Podman en Windows](INSTALACION_PODMAN_WINDOWS.md)
+
+Una vez que hayas terminado la instalación, continúa con los pasos de este documento para instalar las dependencias, construir la imagen del contenedor y ejecutar la API REST.
+
+**Importante:** Para realizar las pruebas, también debe estar disponible el servicio de MLflow Model Serving, ya que la API se comunica con él para obtener las predicciones.
+
+### Ejecución API
+
+Se implementó una API REST utilizando **FastAPI**, integrada con **MLflow Model Serving** y desplegada mediante un contenedor **Podman**.
+
+La API permite realizar predicciones de alta demanda en estaciones de MiBici utilizando el modelo de clasificación P2 registrado en MLflow Model Registry.
+
+**Componentes principales:**
+- FastAPI: recepción y validación de solicitudes HTTP.
+- MLflow Model Serving: ejecución del modelo registrado.
+- Podman: construcción y ejecución del contenedor de la API.
+
+La implementación utiliza una arquitectura de dos servicios: FastAPI se ejecuta en el contenedor Podman, mientras que MLflow Model Serving proporciona el servicio de inferencia.
+
+Para consultar la configuración, construcción, ejecución, endpoints y pruebas, revisar la siguiente documentación:
+
+📄 [Documentación del despliegue de la API REST (FastAPI y Podman)](api/README.md)
+
 ## Project Organization
 
 ```text
@@ -876,3 +1002,5 @@ Instala las herramientas en el entorno virtual del proyecto:
 
 ```bash
 python -m pip install pip-audit bandit
+
+
