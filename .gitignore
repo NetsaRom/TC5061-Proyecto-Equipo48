@@ -249,3 +249,7 @@ mlflow-tracking.db-*
 # Reportes HTML generados por Deepchecks
 reports/deepchecks_data_drift.html
 reports/deepchecks_quality_report.html
+
+# Bases de datos locales de pruebas MLflow
+test-mlflow.db
+test-mlflow.db-*
