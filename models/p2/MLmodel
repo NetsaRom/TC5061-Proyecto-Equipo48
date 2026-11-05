@@ -1,0 +1,38 @@
+artifact_path: file:///C:/TC5061-Proyecto-Equipo48-main/TC5061-Proyecto-Equipo48-main/TC5061-Proyecto-Equipo48/mlruns/3/models/m-c390896ac5bb4a9abfb743215b7c55e1/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.11.9
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.1
+    skops_trusted_types:
+    - numpy.dtype
+    - sklearn.tree._tree.Tree
+is_signature_from_type_hint: false
+mlflow_version: 3.17.1
+model_id: m-c390896ac5bb4a9abfb743215b7c55e1
+model_size_bytes: 4050898
+model_uuid: m-c390896ac5bb4a9abfb743215b7c55e1
+prompts: null
+run_id: 0766e362faf644129dd54d9a2993380c
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "float", "name": "promedio_duracion_salida", "required": true},
+    {"type": "float", "name": "pct_viajes_matutinos", "required": true}, {"type":
+    "float", "name": "viajes_entrantes", "required": true}]'
+  outputs: '[{"type": "tensor", "tensor-spec": {"dtype": "int8", "shape": [-1]}}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-10-26 03:45:34.826207'

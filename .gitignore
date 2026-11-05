@@ -249,3 +249,8 @@ mlflow-tracking.db-*
 # Reportes HTML generados por Deepchecks
 reports/deepchecks_data_drift.html
 reports/deepchecks_quality_report.html
+
+# Permitir artefactos del modelo P2
+!models/
+!models/p2/
+!models/p2/**

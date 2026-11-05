@@ -31,7 +31,7 @@ mlflow.set_registry_uri(TRACKING_URI)
 client = MlflowClient()
 
 MODEL_NAME = "mibici-equipo48-p2-riesgo"
-RUN_ID = "0766e362faf644129dd54d9a2993380c"
+RUN_ID = "be6137fce15846de98583201110d2eab"
 MODEL_ARTIFACT = "model"
 ALIAS = "champion"
 
