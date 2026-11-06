@@ -2,9 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY api/requirements.txt .
+COPY api/requirements.txt ./api-requirements.txt
+COPY models/p2/requirements.txt ./model-requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r api-requirements.txt -r model-requirements.txt
 
 COPY api/ ./api/
 

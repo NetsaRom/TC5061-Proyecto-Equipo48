@@ -140,7 +140,8 @@ def predict(data: PredictionInput):
                 data.pct_viajes_matutinos,
                 data.viajes_entrantes
             ]],
-            columns=FEATURES
+            columns=FEATURES,
+            dtype="float32"
         )
 
         # Ejecutar predicción directamente con el modelo
