@@ -1,23 +1,24 @@
 
-import os
-import requests
-
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+import mlflow.pyfunc
+import pandas as pd
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 
 # ==========================================
-# CONFIGURACIÓN DE MLFLOW MODEL SERVING
+# CONFIGURACIÓN DEL MODELO
 # ==========================================
 
 MODEL_NAME = "mibici-equipo48-p2-riesgo"
-MODEL_ALIAS = "champion"
+MODEL_VERSION = "1"
 
-MLFLOW_SERVING_URL = os.getenv(
-    "MLFLOW_SERVING_URL",
-    "http://host.containers.internal:5001"
-)
+# Ruta del modelo empaquetado dentro del proyecto
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MODEL_PATH = PROJECT_ROOT / "models" / "p2"
 
 FEATURES = [
     "promedio_duracion_salida",
@@ -56,21 +57,40 @@ class PredictionInput(BaseModel):
 class PredictionOutput(BaseModel):
 
     modelo: str
+    version: str
     prediccion: int
     descripcion: str
 
 
 # ==========================================
-# CREACIÓN DE LA API
+# CARGA DEL MODELO
 # ==========================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     print("Iniciando API MiBici...")
-    print(f"MLflow Model Serving: {MLFLOW_SERVING_URL}")
+    print(f"Cargando modelo desde: {MODEL_PATH}")
+
+    try:
+        app.state.model = mlflow.pyfunc.load_model(
+            str(MODEL_PATH)
+        )
+
+        print("Modelo P2 cargado correctamente.")
+
+    except Exception as error:
+        print(f"Error al cargar el modelo: {error}")
+        raise
+
     yield
+
     print("Finalizando API MiBici...")
 
+
+# ==========================================
+# CREACIÓN DE LA API
+# ==========================================
 
 app = FastAPI(
     title="MiBici - API de Predicción",
@@ -78,7 +98,7 @@ app = FastAPI(
         "API REST para predecir alta demanda "
         "en estaciones de MiBici utilizando el modelo P2."
     ),
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -90,26 +110,18 @@ app = FastAPI(
 @app.get("/health")
 def health():
 
-    try:
-        response = requests.get(
-            f"{MLFLOW_SERVING_URL}/ping",
-            timeout=5
-        )
-
-        response.raise_for_status()
-
-        return {
-            "status": "ok",
-            "modelo": MODEL_NAME,
-            "alias": MODEL_ALIAS,
-            "serving": "disponible"
-        }
-
-    except requests.RequestException:
+    if not hasattr(app.state, "model"):
         raise HTTPException(
             status_code=503,
-            detail="MLflow Model Serving no está disponible."
+            detail="El modelo no está cargado."
         )
+
+    return {
+        "status": "ok",
+        "modelo": MODEL_NAME,
+        "version": MODEL_VERSION,
+        "serving": "disponible"
+    }
 
 
 # ==========================================
@@ -121,30 +133,22 @@ def predict(data: PredictionInput):
 
     try:
 
-        # Preparar datos para MLflow
-        payload = {
-            "dataframe_split": {
-                "columns": FEATURES,
-                "data": [[
-                    data.promedio_duracion_salida,
-                    data.pct_viajes_matutinos,
-                    data.viajes_entrantes
-                ]]
-            }
-        }
-
-        # Enviar solicitud al modelo
-        response = requests.post(
-            f"{MLFLOW_SERVING_URL}/invocations",
-            json=payload,
-            timeout=30
+        # Preparar los datos de entrada
+        dataframe = pd.DataFrame(
+            [[
+                data.promedio_duracion_salida,
+                data.pct_viajes_matutinos,
+                data.viajes_entrantes
+            ]],
+            columns=FEATURES
         )
 
-        response.raise_for_status()
+        # Ejecutar predicción directamente con el modelo
+        model = app.state.model
 
-        # Obtener predicción
-        result = response.json()
-        prediction = int(result["predictions"][0])
+        result = model.predict(dataframe)
+
+        prediction = int(result[0])
 
         descripcion = (
             "Alta demanda"
@@ -154,18 +158,14 @@ def predict(data: PredictionInput):
 
         return PredictionOutput(
             modelo=MODEL_NAME,
+            version=MODEL_VERSION,
             prediccion=prediction,
             descripcion=descripcion
         )
 
-    except requests.RequestException as error:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Error al comunicarse con MLflow: {str(error)}"
-        )
+    except Exception as error:
 
-    except (KeyError, IndexError, TypeError, ValueError) as error:
         raise HTTPException(
-            status_code=502,
-            detail=f"Respuesta inesperada de MLflow: {str(error)}"
+            status_code=500,
+            detail=f"Error al ejecutar la predicción: {str(error)}"
         )

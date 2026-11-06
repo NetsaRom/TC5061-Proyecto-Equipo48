@@ -253,3 +253,8 @@ reports/deepchecks_quality_report.html
 # Bases de datos locales de pruebas MLflow
 test-mlflow.db
 test-mlflow.db-*
+
+# Permitir artefactos del modelo P2
+!models/
+!models/p2/
+!models/p2/**
