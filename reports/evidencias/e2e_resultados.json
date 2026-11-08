@@ -1,0 +1,92 @@
+{
+  "fecha_utc": "2026-11-08T21:35:04.586907+00:00",
+  "api_evaluada": "http://127.0.0.1:8000",
+  "total_pruebas": 3,
+  "pruebas_aprobadas": 3,
+  "pruebas_no_aprobadas": 0,
+  "resultado": "APROBADO",
+  "pruebas": [
+    {
+      "prueba": "Comunicación FastAPI - MLflow",
+      "metodo": "GET",
+      "endpoint": "/health",
+      "url": "http://127.0.0.1:8000/health",
+      "status_esperado": 200,
+      "status_obtenido": 200,
+      "respuesta": {
+        "status": "ok",
+        "modelo": "mibici-equipo48-p2-riesgo",
+        "version": "1",
+        "serving": "disponible"
+      },
+      "resultado": "APROBADA",
+      "ok": true
+    },
+    {
+      "prueba": "Predicción con datos válidos",
+      "metodo": "POST",
+      "endpoint": "/predict",
+      "url": "http://127.0.0.1:8000/predict",
+      "status_esperado": 200,
+      "status_obtenido": 200,
+      "respuesta": {
+        "modelo": "mibici-equipo48-p2-riesgo",
+        "version": "1",
+        "prediccion": 0,
+        "descripcion": "Demanda no alta"
+      },
+      "resultado": "APROBADA",
+      "ok": true
+    },
+    {
+      "prueba": "Rechazo de datos inválidos",
+      "metodo": "POST",
+      "endpoint": "/predict",
+      "url": "http://127.0.0.1:8000/predict",
+      "status_esperado": 422,
+      "status_obtenido": 422,
+      "respuesta": {
+        "detail": [
+          {
+            "type": "greater_than_equal",
+            "loc": [
+              "body",
+              "promedio_duracion_salida"
+            ],
+            "msg": "Input should be greater than or equal to 0",
+            "input": -10,
+            "ctx": {
+              "ge": 0.0
+            }
+          },
+          {
+            "type": "less_than_equal",
+            "loc": [
+              "body",
+              "pct_viajes_matutinos"
+            ],
+            "msg": "Input should be less than or equal to 1",
+            "input": 1.5,
+            "ctx": {
+              "le": 1.0
+            }
+          },
+          {
+            "type": "greater_than_equal",
+            "loc": [
+              "body",
+              "viajes_entrantes"
+            ],
+            "msg": "Input should be greater than or equal to 0",
+            "input": -5,
+            "ctx": {
+              "ge": 0.0
+            }
+          }
+        ]
+      },
+      "resultado": "APROBADA",
+      "ok": true
+    }
+  ]
+}
