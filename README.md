@@ -945,7 +945,9 @@ La implementación utiliza una arquitectura de dos servicios: FastAPI se ejecuta
 
 Para consultar la configuración, construcción, ejecución, endpoints y pruebas, revisar la siguiente documentación:
 
-📄 [Documentación del despliegue de la API REST (FastAPI y Podman)](api/README.md)
+📄 [Documentación del despliegue de la API REST (FastAPI y Podman Windows)](api/README.md)
+
+📄 [Documentación del despliegue de la API REST (FastAPI y Docker MacOS)](api/README_API_macOS.md)
 
 ## Project Organization
 
