@@ -87,7 +87,7 @@ def leer_estaciones(ruta: Path) -> pl.DataFrame:
             f"No existe el catálogo de estaciones: {ruta}"
         )
 
-    df = pl.read_csv(ruta)
+    df = pl.read_csv(ruta, encoding='latin-1')
 
     columnas = [
         "id",

@@ -258,3 +258,9 @@ test-mlflow.db-*
 !models/
 !models/p2/
 !models/p2/**
+
+# MLflow local
+mlflow-tracking.db
+mlflow.db
+mlruns/
+mlartifacts/
