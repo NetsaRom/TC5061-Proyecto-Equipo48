@@ -525,4 +525,32 @@ python -m pip install pip-audit bandit
 pip-audit -r requirements.txt
 bandit -r mibici_mlops api
 ```
+## 18. Evidencias
+
+MLFlow Model Serving
+![MLflow Model Serving](../reports/evidencias/MLFlowServer_MacOS.png)
+
+Model train
+![Model train and register](../reports/evidencias/ModelTrain_Register_MacOS.png)
+
+
+Docker container
+
+![Docker Containerfile](../reports/evidencias/Docker_containerfile_MacOS.png)
+![Docker Run](../reports/evidencias/DockerRun_MacOS.png)
+
+Documentacion FastAPI
+![FastAPI](../reports/evidencias/FastAPI_MacOS.png)
+
+
+Endpoint Health
+![Endpoint Health](../reports/evidencias/EndPoint_Health_MacOS.png)
+
+
+Predict model
+![Predict Model](../reports/evidencias/PredictModel_MacOS.png)
+
+![Predict Model](../reports/evidencias/PredictModel2_MacOS.png)
+
+
 
