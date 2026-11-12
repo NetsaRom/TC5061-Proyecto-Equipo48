@@ -340,6 +340,193 @@ print("Modelo de clasificación champion (P2) cargado correctamente.")
 
 La asignación de este alias representa la selección oficial de la versión de producción dentro del registro y bloquea su linaje completo (asociando los metadatos al commit actual de Git y al hash SHA-256 del manifiesto de datos), pero no implica la existencia de un servicio de inferencia HTTP o REST activo.
 
+## Preparación de datos para Data Drift — Modelo P2
+
+### 1. Objetivo
+
+Preparar los conjuntos de datos **Reference** y **Current** para analizar posibles cambios en las distribuciones de las características utilizadas por el modelo de clasificación P2 del proyecto MiBici.
+
+La preparación permite comparar los datos correspondientes al periodo original de entrenamiento contra un periodo posterior, manteniendo las mismas variables predictoras y estructura.
+
+Estos conjuntos servirán como entrada para el análisis de *Data Drift* mediante Evidently y para las etapas posteriores de evaluación del modelo.
+
+### 2. Periodos seleccionados
+
+| Conjunto | Periodo | Viajes registrados | Estaciones |
+|---|---|---:|---:|
+| Reference | Julio–septiembre de 2026 | 1,271,079 | 470 |
+| Current | Octubre de 2026 | 635,532 | 470 |
+
+**Justificación de la selección**
+
+**Reference:** se seleccionaron julio, agosto y septiembre de 2026 porque corresponden exactamente al periodo utilizado para construir las características históricas con las que se entrenó el modelo P2.
+
+**Current:** se seleccionó octubre de 2026 porque es el mes inmediatamente posterior al periodo de entrenamiento y permite analizar posibles cambios en el comportamiento de uso de las estaciones.
+
+Esta selección responde al objetivo de comparar los datos originales del modelo contra datos posteriores que representan un escenario de monitoreo de producción.
+
+### 3. Características utilizadas
+
+Se conservaron las tres variables predictoras originales del modelo P2.
+
+| Característica | Descripción |
+|---|---|
+| `promedio_duracion_salida` | Duración promedio de los viajes que comienzan en cada estación, expresada en minutos. |
+| `pct_viajes_matutinos` | Porcentaje de viajes iniciados entre las 06:00 y las 11:59. |
+| `viajes_entrantes` | Cantidad total de viajes recibidos por estación durante el periodo analizado. |
+
+Adicionalmente, ambos datasets incluyen la columna `estacion`, que identifica cada observación.
+
+La columna `estacion` no debe utilizarse como variable predictora ni incluirse en las pruebas estadísticas de Data Drift.
+
+Las variables `viajes_salientes` y `alta_demanda`, presentes en el dataset original de entrenamiento, se excluyeron de los archivos preparados para el análisis de las tres características predictoras.
+
+### 4. Preparación de los datos
+
+La preparación se realizó utilizando Python y Polars.
+
+**Dataset Reference**
+
+Se utilizó el archivo `features_estaciones.parquet`, generado mediante el pipeline original de clasificación P2 a partir de los viajes de julio, agosto y septiembre de 2026.
+
+De este archivo se seleccionaron únicamente el identificador de estación y las tres variables predictoras del modelo.
+
+**Dataset Current**
+
+Se procesaron los viajes de octubre de 2026 utilizando las mismas transformaciones empleadas por el modelo original:
+
+- Agrupación de viajes por estación de origen.
+- Cálculo de duración promedio de los viajes salientes.
+- Cálculo del porcentaje de viajes matutinos.
+- Conteo de viajes recibidos por estación de destino.
+- Unión de las características por identificador de estación.
+- Sustitución de conteos de entradas nulos por cero.
+- Ordenamiento de los registros por estación.
+
+De esta manera, ambos conjuntos conservan las mismas columnas y tipos de datos.
+
+### 5. Archivos necesarios
+
+Para reproducir la preparación se requieren los siguientes archivos procesados:
+
+```text
+data/processed/viajes_2026_07.parquet
+data/processed/viajes_2026_08.parquet
+data/processed/viajes_2026_09.parquet
+data/processed/viajes_2026_10.parquet
+```
+
+### 6. Ejecución
+
+Desde la raíz del repositorio, ejecutar primero:
+
+```bash
+python -m mibici_mlops.modeling.features_clasificacion
+```
+
+Este comando genera las características originales de entrenamiento en:
+
+```text
+data/processed/features_estaciones.parquet
+```
+
+Posteriormente, ejecutar:
+
+```bash
+python -m mibici_mlops.modeling.prepare_p2_drift_data
+```
+
+Este segundo comando genera los archivos:
+
+```text
+data/interim/p2_drift_reference.parquet
+data/interim/p2_drift_current.parquet
+```
+
+Ambos archivos están preparados para su utilización en las siguientes etapas de análisis.
+
+### 7. Validaciones realizadas
+
+Se verificaron las dimensiones, los esquemas, los valores nulos y los identificadores de estación.
+
+| Validación | Reference | Current |
+|---|---|---|
+| Número de estaciones | 470 | 470 |
+| Número de columnas | 4 | 4 |
+| Valores nulos | 0 | 0 |
+| Identificadores únicos | 470 | 470 |
+| Esquemas compatibles | Sí | Sí |
+
+**Estructura común**
+
+```text
+estacion                  Int64
+promedio_duracion_salida  Float64
+pct_viajes_matutinos      Float64
+viajes_entrantes          UInt32
+```
+
+**Comparación de estaciones**
+
+Se identificaron:
+
+- 468 estaciones presentes en ambos conjuntos.
+- 2 estaciones presentes únicamente en Reference: 175 y 407.
+- 2 estaciones presentes únicamente en Current: 124 y 492.
+
+La coincidencia de estaciones respecto al conjunto Reference es aproximadamente del 99.57 %.
+
+Estas diferencias pueden estar relacionadas con cambios en la actividad registrada durante los periodos analizados. No permiten concluir, por sí solas, que determinadas estaciones hayan sido inauguradas o retiradas.
+
+La estación 124 presenta una sola salida registrada durante octubre, por lo que sus características deben interpretarse con precaución debido al tamaño reducido de su muestra.
+
+### 8. Consideraciones metodológicas
+
+Aunque ambos datasets tienen la misma estructura, existe una diferencia importante en la duración de los periodos:
+
+- Reference agrupa tres meses de información.
+- Current contiene un mes de información.
+
+Esto afecta especialmente a la característica `viajes_entrantes`, porque representa un conteo absoluto de viajes recibidos.
+
+Una diferencia en esta variable puede deberse al número de días analizados o al volumen total de viajes, y no necesariamente a un cambio real en el comportamiento de las estaciones.
+
+Por lo tanto, cualquier resultado de Data Drift deberá interpretarse considerando esta limitación.
+
+Para el análisis estadístico con Evidently se deben utilizar exclusivamente las tres características predictoras, excluyendo la columna `estacion`.
+
+Los datasets preparados representan características agregadas por estación y no registros individuales de viajes.
+
+La detección estadística de drift, la generación del reporte de Evidently, la interpretación de resultados y la comparación de versiones del modelo corresponden a las siguientes etapas de la actividad.
+
+### 9. Entregables
+
+**Script de preparación**
+
+```text
+mibici_mlops/modeling/prepare_p2_drift_data.py
+```
+
+**Dataset de referencia**
+
+```text
+data/interim/p2_drift_reference.parquet
+```
+
+**Dataset actual**
+
+```text
+data/interim/p2_drift_current.parquet
+```
+
+**Documentación**
+
+La presente sección describe los periodos seleccionados, la justificación metodológica, las transformaciones realizadas, las validaciones y las instrucciones necesarias para reproducir los conjuntos de datos.
+
+**Nota:** Los datasets `p2_drift_reference.parquet` y `p2_drift_current.parquet` se incluyen en el repositorio de GitHub para facilitar su utilización por los demás integrantes del equipo. Aunque la carpeta `data/` está excluida normalmente mediante `.gitignore`, estos dos archivos se agregaron explícitamente como entregables de la actividad. Los datos originales y los demás archivos procesados continúan excluidos del control de versiones.
+
+Los conjuntos pueden utilizarse directamente para el análisis de Data Drift con Evidently o regenerarse mediante los comandos documentados anteriormente.
+
 ### Experimentación P3 — Clustering y evaluación de estaciones
 
 | Entry point | Descripción |
