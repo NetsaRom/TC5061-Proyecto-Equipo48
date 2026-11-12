@@ -340,6 +340,78 @@ print("Modelo de clasificación champion (P2) cargado correctamente.")
 
 La asignación de este alias representa la selección oficial de la versión de producción dentro del registro y bloquea su linaje completo (asociando los metadatos al commit actual de Git y al hash SHA-256 del manifiesto de datos), pero no implica la existencia de un servicio de inferencia HTTP o REST activo.
 
+## Preparación de datos para Data Drift — Modelo P2
+
+### Objetivo
+
+Preparar dos conjuntos de características por estación para comparar
+las distribuciones del modelo P2 entre septiembre y octubre de 2026,
+sin volver a entrenar el clasificador.
+
+### Periodos
+
+- **Reference:** septiembre de 2026, 489,298 viajes y 468 estaciones.
+- **Current:** octubre de 2026, 635,532 viajes y 470 estaciones.
+
+### Características
+
+Se calculan las tres variables de entrada del modelo P2:
+
+- `promedio_duracion_salida`: duración promedio de los viajes salientes, en minutos.
+- `pct_viajes_matutinos`: porcentaje de viajes iniciados entre las 06:00 y las 11:59.
+- `viajes_entrantes`: número total de viajes recibidos por estación durante el mes.
+
+La columna `estacion` identifica cada observación, pero no debe
+utilizarse como característica en el análisis estadístico de drift.
+
+### Ejecución
+
+Se requieren previamente los archivos procesados:
+
+- `data/processed/viajes_2026_09.parquet`
+- `data/processed/viajes_2026_10.parquet`
+
+Desde la raíz del repositorio, ejecutar:
+
+```bash
+python -m mibici_mlops.modeling.prepare_p2_drift_data
+```
+
+El script genera:
+
+- `data/interim/p2_drift_reference.parquet`
+- `data/interim/p2_drift_current.parquet`
+
+### Validaciones realizadas
+
+- Esquemas de Reference y Current compatibles.
+- Ausencia de valores nulos en las tres características.
+- Ningún viaje fuera de su mes correspondiente.
+- Las 468 estaciones de septiembre aparecen también en octubre.
+- Octubre incluye adicionalmente las estaciones 124 y 492.
+- La estación 124 presenta una sola salida en octubre; sus estadísticas
+  deben interpretarse con precaución por su bajo tamaño de muestra.
+
+### Consideraciones metodológicas
+
+Esta preparación permite comparar dos ventanas mensuales consecutivas,
+pero **Reference no reproduce exactamente la distribución utilizada
+para entrenar P2**, que se calculó agregando julio, agosto y septiembre
+de 2026.
+
+En particular, `viajes_entrantes` es un conteo absoluto sensible a
+la duración del periodo y al volumen de viajes. Septiembre tiene 30
+días y octubre 31. Las diferencias observadas no deben interpretarse
+automáticamente como degradación del modelo ni como drift significativo.
+
+La detección estadística de drift y la generación del reporte
+corresponden a una etapa posterior.
+
+Los archivos Parquet se generan localmente y no se versionan en Git,
+de acuerdo con la configuración `.gitignore` del proyecto.
+
+---
+
 ### Experimentación P3 — Clustering y evaluación de estaciones
 
 | Entry point | Descripción |
