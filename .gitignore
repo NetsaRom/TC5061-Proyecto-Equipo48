@@ -203,6 +203,11 @@ mlartifacts/
 mlflow.db
 mlflow.db-*
 
+# Reportes generados por el monitoreo de drift P2
+reports/p2_evidently_drift_report.html
+reports/p2_evidently_snapshot.json
+reports/p2_data_quality_summary.json
+
 # Modelos entrenados y serializados
 *.pkl
 *.pickle
