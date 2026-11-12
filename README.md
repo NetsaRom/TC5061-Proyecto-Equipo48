@@ -523,7 +523,9 @@ data/interim/p2_drift_current.parquet
 
 La presente sección describe los periodos seleccionados, la justificación metodológica, las transformaciones realizadas, las validaciones y las instrucciones necesarias para reproducir los conjuntos de datos.
 
-**Nota:** los archivos Parquet se generan localmente y no se incluyen en Git debido a las reglas establecidas en `.gitignore`. Para que otros integrantes del equipo puedan utilizarlos, deberán reproducirlos con los comandos anteriores o recibir los archivos por un medio compartido.
+**Nota:** Los datasets `p2_drift_reference.parquet` y `p2_drift_current.parquet` se incluyen en el repositorio de GitHub para facilitar su utilización por los demás integrantes del equipo. Aunque la carpeta `data/` está excluida normalmente mediante `.gitignore`, estos dos archivos se agregaron explícitamente como entregables de la actividad. Los datos originales y los demás archivos procesados continúan excluidos del control de versiones.
+
+Los conjuntos pueden utilizarse directamente para el análisis de Data Drift con Evidently o regenerarse mediante los comandos documentados anteriormente.
 
 ### Experimentación P3 — Clustering y evaluación de estaciones
 
