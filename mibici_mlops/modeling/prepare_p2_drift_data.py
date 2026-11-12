@@ -76,7 +76,22 @@ def preparar_features_mes(periodo: str) -> pl.DataFrame:
 def main() -> None:
     """Genera los datasets Reference y Current para Data Drift P2."""
 
-    reference = preparar_features_mes("2026_09")
+    # Reference: características originales de entrenamiento (julio-septiembre).
+    ruta_reference_original = PROCESSED_DATA_DIR / "features_estaciones.parquet"
+
+    if not ruta_reference_original.exists():
+        raise FileNotFoundError(
+            f"No existe: {ruta_reference_original}. "
+            "Ejecuta primero: python -m mibici_mlops.modeling.features_clasificacion"
+        )
+
+    reference = (
+        pl.read_parquet(ruta_reference_original)
+        .select(["estacion", *FEATURES])
+        .sort("estacion")
+    )
+
+    # Current: características del periodo posterior (octubre).
     current = preparar_features_mes("2026_10")
 
     if reference.schema != current.schema:

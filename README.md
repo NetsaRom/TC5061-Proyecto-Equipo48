@@ -342,75 +342,188 @@ La asignación de este alias representa la selección oficial de la versión de 
 
 ## Preparación de datos para Data Drift — Modelo P2
 
-### Objetivo
+### 1. Objetivo
 
-Preparar dos conjuntos de características por estación para comparar
-las distribuciones del modelo P2 entre septiembre y octubre de 2026,
-sin volver a entrenar el clasificador.
+Preparar los conjuntos de datos **Reference** y **Current** para analizar posibles cambios en las distribuciones de las características utilizadas por el modelo de clasificación P2 del proyecto MiBici.
 
-### Periodos
+La preparación permite comparar los datos correspondientes al periodo original de entrenamiento contra un periodo posterior, manteniendo las mismas variables predictoras y estructura.
 
-- **Reference:** septiembre de 2026, 489,298 viajes y 468 estaciones.
-- **Current:** octubre de 2026, 635,532 viajes y 470 estaciones.
+Estos conjuntos servirán como entrada para el análisis de *Data Drift* mediante Evidently y para las etapas posteriores de evaluación del modelo.
 
-### Características
+### 2. Periodos seleccionados
 
-Se calculan las tres variables de entrada del modelo P2:
+| Conjunto | Periodo | Viajes registrados | Estaciones |
+|---|---|---:|---:|
+| Reference | Julio–septiembre de 2026 | 1,271,079 | 470 |
+| Current | Octubre de 2026 | 635,532 | 470 |
 
-- `promedio_duracion_salida`: duración promedio de los viajes salientes, en minutos.
-- `pct_viajes_matutinos`: porcentaje de viajes iniciados entre las 06:00 y las 11:59.
-- `viajes_entrantes`: número total de viajes recibidos por estación durante el mes.
+**Justificación de la selección**
 
-La columna `estacion` identifica cada observación, pero no debe
-utilizarse como característica en el análisis estadístico de drift.
+**Reference:** se seleccionaron julio, agosto y septiembre de 2026 porque corresponden exactamente al periodo utilizado para construir las características históricas con las que se entrenó el modelo P2.
 
-### Ejecución
+**Current:** se seleccionó octubre de 2026 porque es el mes inmediatamente posterior al periodo de entrenamiento y permite analizar posibles cambios en el comportamiento de uso de las estaciones.
 
-Se requieren previamente los archivos procesados:
+Esta selección responde al objetivo de comparar los datos originales del modelo contra datos posteriores que representan un escenario de monitoreo de producción.
 
-- `data/processed/viajes_2026_09.parquet`
-- `data/processed/viajes_2026_10.parquet`
+### 3. Características utilizadas
 
-Desde la raíz del repositorio, ejecutar:
+Se conservaron las tres variables predictoras originales del modelo P2.
+
+| Característica | Descripción |
+|---|---|
+| `promedio_duracion_salida` | Duración promedio de los viajes que comienzan en cada estación, expresada en minutos. |
+| `pct_viajes_matutinos` | Porcentaje de viajes iniciados entre las 06:00 y las 11:59. |
+| `viajes_entrantes` | Cantidad total de viajes recibidos por estación durante el periodo analizado. |
+
+Adicionalmente, ambos datasets incluyen la columna `estacion`, que identifica cada observación.
+
+La columna `estacion` no debe utilizarse como variable predictora ni incluirse en las pruebas estadísticas de Data Drift.
+
+Las variables `viajes_salientes` y `alta_demanda`, presentes en el dataset original de entrenamiento, se excluyeron de los archivos preparados para el análisis de las tres características predictoras.
+
+### 4. Preparación de los datos
+
+La preparación se realizó utilizando Python y Polars.
+
+**Dataset Reference**
+
+Se utilizó el archivo `features_estaciones.parquet`, generado mediante el pipeline original de clasificación P2 a partir de los viajes de julio, agosto y septiembre de 2026.
+
+De este archivo se seleccionaron únicamente el identificador de estación y las tres variables predictoras del modelo.
+
+**Dataset Current**
+
+Se procesaron los viajes de octubre de 2026 utilizando las mismas transformaciones empleadas por el modelo original:
+
+- Agrupación de viajes por estación de origen.
+- Cálculo de duración promedio de los viajes salientes.
+- Cálculo del porcentaje de viajes matutinos.
+- Conteo de viajes recibidos por estación de destino.
+- Unión de las características por identificador de estación.
+- Sustitución de conteos de entradas nulos por cero.
+- Ordenamiento de los registros por estación.
+
+De esta manera, ambos conjuntos conservan las mismas columnas y tipos de datos.
+
+### 5. Archivos necesarios
+
+Para reproducir la preparación se requieren los siguientes archivos procesados:
+
+```text
+data/processed/viajes_2026_07.parquet
+data/processed/viajes_2026_08.parquet
+data/processed/viajes_2026_09.parquet
+data/processed/viajes_2026_10.parquet
+```
+
+### 6. Ejecución
+
+Desde la raíz del repositorio, ejecutar primero:
+
+```bash
+python -m mibici_mlops.modeling.features_clasificacion
+```
+
+Este comando genera las características originales de entrenamiento en:
+
+```text
+data/processed/features_estaciones.parquet
+```
+
+Posteriormente, ejecutar:
 
 ```bash
 python -m mibici_mlops.modeling.prepare_p2_drift_data
 ```
 
-El script genera:
+Este segundo comando genera los archivos:
 
-- `data/interim/p2_drift_reference.parquet`
-- `data/interim/p2_drift_current.parquet`
+```text
+data/interim/p2_drift_reference.parquet
+data/interim/p2_drift_current.parquet
+```
 
-### Validaciones realizadas
+Ambos archivos están preparados para su utilización en las siguientes etapas de análisis.
 
-- Esquemas de Reference y Current compatibles.
-- Ausencia de valores nulos en las tres características.
-- Ningún viaje fuera de su mes correspondiente.
-- Las 468 estaciones de septiembre aparecen también en octubre.
-- Octubre incluye adicionalmente las estaciones 124 y 492.
-- La estación 124 presenta una sola salida en octubre; sus estadísticas
-  deben interpretarse con precaución por su bajo tamaño de muestra.
+### 7. Validaciones realizadas
 
-### Consideraciones metodológicas
+Se verificaron las dimensiones, los esquemas, los valores nulos y los identificadores de estación.
 
-Esta preparación permite comparar dos ventanas mensuales consecutivas,
-pero **Reference no reproduce exactamente la distribución utilizada
-para entrenar P2**, que se calculó agregando julio, agosto y septiembre
-de 2026.
+| Validación | Reference | Current |
+|---|---|---|
+| Número de estaciones | 470 | 470 |
+| Número de columnas | 4 | 4 |
+| Valores nulos | 0 | 0 |
+| Identificadores únicos | 470 | 470 |
+| Esquemas compatibles | Sí | Sí |
 
-En particular, `viajes_entrantes` es un conteo absoluto sensible a
-la duración del periodo y al volumen de viajes. Septiembre tiene 30
-días y octubre 31. Las diferencias observadas no deben interpretarse
-automáticamente como degradación del modelo ni como drift significativo.
+**Estructura común**
 
-La detección estadística de drift y la generación del reporte
-corresponden a una etapa posterior.
+```text
+estacion                  Int64
+promedio_duracion_salida  Float64
+pct_viajes_matutinos      Float64
+viajes_entrantes          UInt32
+```
 
-Los archivos Parquet se generan localmente y no se versionan en Git,
-de acuerdo con la configuración `.gitignore` del proyecto.
+**Comparación de estaciones**
 
----
+Se identificaron:
+
+- 468 estaciones presentes en ambos conjuntos.
+- 2 estaciones presentes únicamente en Reference: 175 y 407.
+- 2 estaciones presentes únicamente en Current: 124 y 492.
+
+La coincidencia de estaciones respecto al conjunto Reference es aproximadamente del 99.57 %.
+
+Estas diferencias pueden estar relacionadas con cambios en la actividad registrada durante los periodos analizados. No permiten concluir, por sí solas, que determinadas estaciones hayan sido inauguradas o retiradas.
+
+La estación 124 presenta una sola salida registrada durante octubre, por lo que sus características deben interpretarse con precaución debido al tamaño reducido de su muestra.
+
+### 8. Consideraciones metodológicas
+
+Aunque ambos datasets tienen la misma estructura, existe una diferencia importante en la duración de los periodos:
+
+- Reference agrupa tres meses de información.
+- Current contiene un mes de información.
+
+Esto afecta especialmente a la característica `viajes_entrantes`, porque representa un conteo absoluto de viajes recibidos.
+
+Una diferencia en esta variable puede deberse al número de días analizados o al volumen total de viajes, y no necesariamente a un cambio real en el comportamiento de las estaciones.
+
+Por lo tanto, cualquier resultado de Data Drift deberá interpretarse considerando esta limitación.
+
+Para el análisis estadístico con Evidently se deben utilizar exclusivamente las tres características predictoras, excluyendo la columna `estacion`.
+
+Los datasets preparados representan características agregadas por estación y no registros individuales de viajes.
+
+La detección estadística de drift, la generación del reporte de Evidently, la interpretación de resultados y la comparación de versiones del modelo corresponden a las siguientes etapas de la actividad.
+
+### 9. Entregables
+
+**Script de preparación**
+
+```text
+mibici_mlops/modeling/prepare_p2_drift_data.py
+```
+
+**Dataset de referencia**
+
+```text
+data/interim/p2_drift_reference.parquet
+```
+
+**Dataset actual**
+
+```text
+data/interim/p2_drift_current.parquet
+```
+
+**Documentación**
+
+La presente sección describe los periodos seleccionados, la justificación metodológica, las transformaciones realizadas, las validaciones y las instrucciones necesarias para reproducir los conjuntos de datos.
+
+**Nota:** los archivos Parquet se generan localmente y no se incluyen en Git debido a las reglas establecidas en `.gitignore`. Para que otros integrantes del equipo puedan utilizarlos, deberán reproducirlos con los comandos anteriores o recibir los archivos por un medio compartido.
 
 ### Experimentación P3 — Clustering y evaluación de estaciones
 
