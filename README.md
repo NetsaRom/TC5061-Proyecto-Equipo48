@@ -340,6 +340,271 @@ print("Modelo de clasificación champion (P2) cargado correctamente.")
 
 La asignación de este alias representa la selección oficial de la versión de producción dentro del registro y bloquea su linaje completo (asociando los metadatos al commit actual de Git y al hash SHA-256 del manifiesto de datos), pero no implica la existencia de un servicio de inferencia HTTP o REST activo.
 
+##  Reentrenamiento y registro de una nueva versión del modelo P2
+
+Recuperación del modelo actual
+P2 implementa un problema de clasificación supervisada para estimar la etiqueta `alta_demanda`. La etiqueta se utiliza como proxy operativo y no como una medición directa de desabasto.
+
+El script de entrenamiento es:
+
+```text
+mibici_mlops/modeling/experiment_p2.py
+```
+
+### Ejecutar el experimento
+
+```bash
+mlflow run . -e experiment_p2 \
+  --experiment-name mibici-equipo48 \
+  --env-manager local
+```
+
+El pipeline realiza:
+
+1. Preparación de los datos de P2.
+2. Entrenamiento del baseline.
+3. Búsqueda de hiperparámetros mediante corridas anidadas.
+4. Evaluación sobre validación.
+5. Reentrenamiento de las configuraciones candidatas.
+6. Evaluación final sobre el conjunto de prueba.
+7. Registro de parámetros, métricas, tags, modelos y artefactos.
+8. Comparación final de candidatos.
+
+### Configuraciones evaluadas
+
+El algoritmo utilizado es `RandomForestClassifier`.
+
+| Configuración | `n_estimators` | `max_depth` |
+|---|---:|---:|
+| Baseline | 10 | 5 |
+| Candidate 1 | 50 | 10 |
+| Candidate 2 | 100 | 15 |
+| Candidate 3 | 200 | 20 |
+
+Las configuraciones conservan:
+
+```text
+class_weight = balanced
+random_state = 42
+```
+
+### Validación y evaluación final
+
+Las corridas de búsqueda:
+
+```text
+P2_search_candidate_1
+P2_search_candidate_2
+P2_search_candidate_3
+```
+
+se evalúan con métricas de validación. Después, las configuraciones se reentrenan y se evalúan sobre el conjunto final de prueba mediante:
+
+```text
+P2_original_baseline
+P2_candidate_1
+P2_candidate_2
+P2_candidate_3
+```
+
+Las métricas de validación y prueba no deben compararse como si procedieran del mismo conjunto.
+
+### Resultados finales de referencia
+
+| Modelo | F1-Score | ROC-AUC |
+|---|---:|---:|
+| `P2_original_baseline` | **0.958333** | 0.981892 |
+| `P2_candidate_1` | 0.957447 | **0.989814** |
+| `P2_candidate_2` | 0.947368 | **0.989814** |
+| `P2_candidate_3` | 0.947368 | 0.989588 |
+
+`P2_candidate_1` se seleccionó como alternativa para registro y comparación porque:
+
+- mantiene un F1-Score prácticamente equivalente al baseline;
+- mejora el ROC-AUC de 0.981892 a 0.989814;
+- alcanza el mismo ROC-AUC que Candidate 2 con menor complejidad;
+- utiliza 50 árboles y profundidad máxima de 10.
+
+La diferencia respecto al baseline es aproximadamente:
+
+```text
+Δ F1      = -0.000886
+Δ ROC-AUC = +0.007922
+```
+
+La selección de Candidate 1 como alternativa no implica su promoción automática a producción.
+
+### Corrida seleccionada
+
+```text
+Run Name: P2_candidate_1
+Run ID: 01a56c56ea1e4b9f9ff9eb0429166a89
+Status: Finished
+stage_of_work: candidate
+model_family: RandomForestClassifier
+```
+
+MLflow conserva también tags como `question`, `team`, `git_commit` y `data_version`.
+
+---
+
+## Reentrenamiento y alternativa V2
+
+La estrategia para generar una alternativa consistió en modificar los hiperparámetros del modelo, manteniendo constantes:
+
+- preparación de datos;
+- ingeniería de características;
+- variable objetivo;
+- algoritmo;
+- particiones de entrenamiento, validación y prueba;
+- métricas de evaluación.
+
+La configuración alternativa es:
+
+```text
+RandomForestClassifier
+n_estimators = 50
+max_depth = 10
+class_weight = balanced
+random_state = 42
+```
+
+Esta alternativa se considera una candidata para comparación con el modelo existente. Registrar una versión nueva y promoverla como `champion` son decisiones separadas.
+
+---
+
+## MLflow Model Registry
+
+El modelo P2 se administra bajo el nombre:
+
+```text
+mibici-equipo48-p2-riesgo
+```
+
+Todas las iteraciones deben registrarse bajo ese mismo nombre. No debe crearse otro Registered Model con nombres como `mibici-equipo48-p2-riesgo-v2`.
+
+### Script de registro inicial
+
+```text
+register_p2_model.py
+```
+
+Este script se utilizó para registrar la primera versión y administrar el alias `champion`.
+
+### Script de registro de la alternativa
+
+```text
+register_p2_model_V2.py
+```
+
+Responsabilidades:
+
+- validar que la corrida haya finalizado;
+- comprobar que corresponda al flujo P2;
+- validar `stage_of_work=candidate`;
+- evitar registrar dos veces el mismo Run ID;
+- registrar el modelo bajo el mismo nombre existente;
+- documentar la procedencia de la versión;
+- validar la carga desde Model Registry;
+- mantener separada la promoción a `champion`.
+
+La configuración esperada para la alternativa final es:
+
+```text
+MODEL_NAME = mibici-equipo48-p2-riesgo
+RUN_ID = 01a56c56ea1e4b9f9ff9eb0429166a89
+MODEL_ARTIFACT = model
+EXPECTED_STAGE = candidate
+```
+
+Ejecutar:
+
+```bash
+python register_p2_model_V2.py
+```
+
+### Numeración de versiones
+
+La numeración del Registry representa el historial real de registros. Si durante el desarrollo ya se registró otra corrida, MLflow puede asignar a Candidate 1 una versión superior a 2.
+
+Ejemplo:
+
+```text
+mibici-equipo48-p2-riesgo
+├── Version 1 → champion
+├── Version 2 → iteración de desarrollo
+└── Version 3 → P2_candidate_1
+```
+
+No se recomienda eliminar versiones únicamente para modificar su numeración. La trazabilidad tiene prioridad sobre el número visible.
+
+### 11.4 Alias `champion`
+
+La versión nueva no debe recibir `champion` automáticamente. El flujo recomendado es:
+
+```text
+registro de candidata
+        ↓
+comparación y validación
+        ↓
+decisión de promoción
+        ↓
+asignación opcional de champion
+```
+
+Para consultar el modelo activo desde una aplicación:
+
+```text
+models:/mibici-equipo48-p2-riesgo@champion
+```
+
+Para cargar una versión numérica concreta:
+
+```text
+models:/mibici-equipo48-p2-riesgo/<version>
+```
+
+---
+
+## Evidencia requerida para P2
+
+La evidencia del reentrenamiento y registro incluye:
+
+1. **Script de entrenamiento:** `mibici_mlops/modeling/experiment_p2.py`.
+2. **Script de registro:** `register_p2_model_V2.py`.
+3. **Corrida seleccionada:** `P2_candidate_1`.
+4. **Run ID:** `01a56c56ea1e4b9f9ff9eb0429166a89`.
+5. **Parámetros:** 50 árboles, profundidad máxima 10, balanceo de clases y semilla 42.
+6. **Métricas:** F1-Score de 0.957447 y ROC-AUC de 0.989814.
+7. **Model Registry:** nueva versión dentro de `mibici-equipo48-p2-riesgo`.
+8. **Gobernanza:** la candidata no sustituye automáticamente al alias `champion`.
+
+---
+
+## Despliegue de P2
+
+El modelo P2 puede publicarse mediante dos servicios:
+
+- **MLflow Model Serving:** carga el modelo registrado y expone inferencia.
+- **FastAPI:** valida solicitudes y funciona como intermediario entre el cliente y MLflow Model Serving.
+
+Los archivos de documentación específicos del despliegue deben consultarse en los README de API incluidos en el repositorio.
+
+Antes de desplegar, verificar que el alias `champion` apunte a la versión autorizada para inferencia.
+
+Ejemplo conceptual:
+
+```text
+Cliente
+   ↓ HTTP/JSON
+FastAPI
+   ↓
+MLflow Model Serving
+   ↓
+mibici-equipo48-p2-riesgo@champion
+```
+
+
 ## Preparación de datos para Data Drift — Modelo P2
 
 ### 1. Objetivo
