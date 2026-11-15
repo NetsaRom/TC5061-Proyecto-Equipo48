@@ -16,7 +16,11 @@ Modelos orientados a asignar categorías o clases a las observaciones, de acuerd
 
 Consulta la [documentación del modelo de clasificación](modelo_clasificacion.md).
 
-### 3. Clustering
+### 3. Monitoreo de drift P2
+
+Consulta la [documentación de monitoreo de data drift para P2](p2-data-drift-monitoring.md).
+
+### 4. Clustering
 
 Modelos de aprendizaje no supervisado orientados a identificar grupos de estaciones u observaciones con características similares.
 
