@@ -792,6 +792,58 @@ La presente sección describe los periodos seleccionados, la justificación meto
 
 Los conjuntos pueden utilizarse directamente para el análisis de Data Drift con Evidently o regenerarse mediante los comandos documentados anteriormente.
 
+## Evaluación A/B y recomendación de Continuous Training — P2
+
+### Resultados de Data Drift
+
+El análisis realizado con Evidently detectó drift en 2 de las 3 variables predictoras (66.67 %).
+
+- `promedio_duracion_salida`: drift detectado (p = 0).
+- `viajes_entrantes`: drift detectado (p = 0).
+- `pct_viajes_matutinos`: sin drift (p = 0.1476).
+
+**Figura 1.** Resultado general de Data Drift con Evidently.
+
+### Evaluación A/B
+
+Se compararon el modelo Baseline y P2 Candidate 2 utilizando las 470 estaciones de octubre de 2026.
+
+| Métrica | Baseline | Candidate 2 |
+|---|---:|---:|
+| Accuracy | 95.96 % | 96.60 % |
+| Precision | 97.70 % | 97.73 % |
+| Recall | 96.13 % | 97.10 % |
+| F1-score | 96.91 % | 97.41 % |
+| ROC-AUC | 98.51 % | 99.23 % |
+
+### Resultados de evaluación A/B – Octubre 2026
+
+#### Comparación de métricas
+
+![Comparación de métricas A/B: Baseline vs P2 Candidate 1](reports/figures/p2_ab_metricas_octubre_c1.png)
+
+#### Matrices de confusión
+
+**Modelo Baseline**
+
+![Matriz de confusión del modelo Baseline](reports/figures/p2_matriz_confusion_baseline_c1.png)
+
+**Modelo P2_candidate_1**
+
+![Matriz de confusión de P2 Candidate 1](reports/figures/p2_matriz_confusion_p2_candidate_1_c1.png)
+
+### Reporte de Data Drift
+
+[Consultar reporte completo de Data Drift generado con Evidently](reports/p2_evidently_drift_report.html)
+
+Candidate 2 obtuvo mejores resultados en todas las métricas y redujo los falsos negativos de 12 a 9. Por ello, se recomienda como alternativa preferida para continuar su validación.
+
+### Recomendación de Continuous Training
+
+No se recomienda activar el reentrenamiento únicamente por la detección de drift. Se propone realizarlo cuando los cambios en los datos sean sostenidos y estén acompañados de una disminución comprobada del desempeño del modelo.
+
+**Limitación:** las etiquetas de octubre se construyeron como una aproximación de demanda relativa, no como mediciones reales de desabasto. Además, la comparación requiere considerar que Reference comprende 92 días y Current 31 días.
+
 ### Experimentación P3 — Clustering y evaluación de estaciones
 
 | Entry point | Descripción |
