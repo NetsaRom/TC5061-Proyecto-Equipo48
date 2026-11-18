@@ -1,0 +1,108 @@
+name: mibici-mlops
+
+services:
+  mlflow:
+    image: mibici-p2-runtime:local
+    build:
+      context: .
+      dockerfile: Containerfile
+    command:
+      - mlflow
+      - server
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --default-artifact-root
+      - /mlflow/artifacts
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --allowed-hosts
+      - mlflow,mlflow:*,localhost,localhost:*,127.0.0.1,127.0.0.1:*
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    networks:
+      - mibici-network
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:5000/', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  model-serving:
+    image: mibici-p2-runtime:local
+    build:
+      context: .
+      dockerfile: Containerfile
+    command:
+      - mlflow
+      - models
+      - serve
+      - --model-uri
+      - /app/models/p2
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5001"
+      - --env-manager
+      - local
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    networks:
+      - mibici-network
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:5001/ping', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  api:
+    image: mibici-p2-runtime:local
+    build:
+      context: .
+      dockerfile: Containerfile
+    environment:
+      MLFLOW_SERVING_URL: ${MLFLOW_SERVING_URL:-http://model-serving:5001}
+      MLFLOW_TIMEOUT_SECONDS: ${MLFLOW_TIMEOUT_SECONDS:-10}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      model-serving:
+        condition: service_healthy
+    networks:
+      - mibici-network
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+networks:
+  mibici-network:
+    driver: bridge
+
+volumes:
+  mlflow_data:
