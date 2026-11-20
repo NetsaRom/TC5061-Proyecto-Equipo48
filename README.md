@@ -1453,6 +1453,20 @@ Para consultar la configuración, construcción, ejecución, endpoints y pruebas
 
 📄 [Documentación del despliegue de la API REST (FastAPI y Docker MacOS)](api/README_API_macOS.md)
 
+## Orquestación local con Docker Compose
+
+La arquitectura operativa de P2 se inicia con API FastAPI, MLflow Tracking y
+MLflow Model Serving mediante un único comando:
+
+```bash
+docker compose up --build -d
+```
+
+La API queda disponible en `http://localhost:8000` y el tracking server en
+`http://localhost:5000`. Consulta las variables de entorno, los health checks,
+la verificación de comunicación API–MLflow y los comandos de diagnóstico en
+[la guía de Docker Compose](docs/docker-compose-orchestration.md).
+
 ## Project Organization
 
 ```text
