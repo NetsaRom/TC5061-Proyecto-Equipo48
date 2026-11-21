@@ -1467,6 +1467,23 @@ La API queda disponible en `http://localhost:8000` y el tracking server en
 la verificación de comunicación API–MLflow y los comandos de diagnóstico en
 [la guía de Docker Compose](docs/docker-compose-orchestration.md).
 
+## Pruebas de carga, monitoreo y optimización FinOps
+
+Se realizaron pruebas de carga con Locust sobre la API REST del modelo P2,
+monitoreo de recursos con Docker Stats y un experimento de optimización
+de memoria de MLflow Tracking.
+
+Las pruebas alcanzaron aproximadamente 23.8 solicitudes por segundo
+con 50 usuarios concurrentes, sin errores registrados.
+
+La optimización de MLflow permitió reducir aproximadamente un 26.1%
+el consumo observado de memoria del contenedor.
+
+Para consultar la metodología, los escenarios, las métricas,
+los resultados y las conclusiones:
+
+📄 [Documentación de Locust, monitoreo y FinOps](docs/locust-monitoring-finops.md)
+
 ## Project Organization
 
 ```text
