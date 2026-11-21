@@ -1,8 +1,7 @@
 
-from pathlib import Path
 
-import polars as pl
 from loguru import logger
+import polars as pl
 
 from mibici_mlops.config import PROCESSED_DATA_DIR
 

@@ -10,18 +10,14 @@ Parte B — Segunda entrega de MLOps.
 """
 
 import os
-import hashlib
-from pathlib import Path
-
-import mlflow
-import mlflow.sklearn
-from mlflow.models import infer_signature
-import numpy as np
-import pandas as pd
-import json
-import matplotlib.pyplot as plt
 import subprocess
 
+import matplotlib.pyplot as plt
+import mlflow
+from mlflow.models import infer_signature
+import mlflow.sklearn
+import numpy as np
+import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
@@ -30,11 +26,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
 from mibici_mlops.modeling.train_p1_regression import (
-    load_trips,
-    build_features,
-    ROOT_DIR,
     EXPERIMENT_NAME,
     RANDOM_STATE,
+    ROOT_DIR,
+    build_features,
+    load_trips,
 )
 
 # Configuración de experimentación
@@ -595,10 +591,10 @@ def main():
         file_hashes,
         cutoff,
         train_hours,
-        test_hours,
+        _test_hours,
     ) = prepare_data()
 
-    X_fit, X_val, y_fit, y_val, validation_cutoff = prepare_validation(
+    X_fit, X_val, y_fit, y_val, _ = prepare_validation(
     X_train,
     y_train,
     train_hours,
@@ -625,7 +621,7 @@ def main():
     print(best)
 
     # Evaluación final: modelo original y tres candidatos
-    comparison = evaluate_final_candidates(
+    evaluate_final_candidates(
         X_train=X_train,
         y_train=y_train,
         X_test=X_test,
