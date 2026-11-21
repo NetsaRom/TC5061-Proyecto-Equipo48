@@ -12,14 +12,13 @@ Herramienta: Deepchecks 0.19.1.
 
 from pathlib import Path
 
-import pandas as pd
-
 from deepchecks.tabular import Dataset, Suite
 from deepchecks.tabular.checks import (
-    PercentOfNulls,
     DataDuplicates,
     FeatureDrift,
+    PercentOfNulls,
 )
+import pandas as pd
 
 # Directorio principal del proyecto
 ROOT_DIR = Path(__file__).resolve().parents[1]

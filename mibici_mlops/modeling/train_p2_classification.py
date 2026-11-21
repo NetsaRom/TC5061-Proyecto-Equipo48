@@ -1,7 +1,7 @@
 
+import os
 from pathlib import Path
 import subprocess
-import os
 
 from loguru import logger
 import mlflow
