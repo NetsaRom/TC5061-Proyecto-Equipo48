@@ -1,7 +1,9 @@
 from pathlib import Path
-import typer
-import polars as pl
+
 from loguru import logger
+import polars as pl
+import typer
+
 from mibici_mlops.config import PROCESSED_DATA_DIR
 
 app = typer.Typer()

@@ -6,13 +6,13 @@ import unicodedata
 
 import matplotlib.pyplot as plt
 import mlflow
+from mlflow.models import infer_signature
 import mlflow.sklearn
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from mlflow.models import infer_signature
 
 from mibici_mlops.config import (
     FECHA_FIN_EXCLUSIVA,

@@ -1,19 +1,26 @@
 
-from pathlib import Path
-
-import polars as pl
-import typer
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-
-from loguru import logger
-
-from mibici_mlops.config import (PROCESSED_DATA_DIR, DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR, PERIODOS_DATOS, DESCARGAR_CATALOGOS, FECHA_INICIO, FECHA_FIN, generar_periodos, PROJ_ROOT)
-
+from datetime import UTC, datetime
 import hashlib
 import json
-from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urljoin
+
+from bs4 import BeautifulSoup
+from loguru import logger
+import polars as pl
+import typer
+
+from mibici_mlops.config import (
+    DATA_DIR,
+    DESCARGAR_CATALOGOS,
+    EXTERNAL_DATA_DIR,
+    FECHA_FIN,
+    FECHA_INICIO,
+    PROCESSED_DATA_DIR,
+    PROJ_ROOT,
+    RAW_DATA_DIR,
+    generar_periodos,
+)
 
 app = typer.Typer()
 
@@ -57,7 +64,7 @@ def generar_manifiesto(rutas_archivos: list[Path], ruta_salida: Path) -> None:
     manifiesto = {
         "equipo": 48,
         "version_manifiesto": "1.0",
-        "fecha_generacion_utc": datetime.now(timezone.utc).isoformat(),
+        "fecha_generacion_utc": datetime.now(UTC).isoformat(),
         "archivos": archivos,
     }
 
