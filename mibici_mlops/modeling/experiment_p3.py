@@ -11,17 +11,16 @@ Incluye:
 import hashlib
 import json
 import os
+from pathlib import Path
 import re
 import time
 import unicodedata
-from contextlib import nullcontext
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import mlflow
+from mlflow.models import infer_signature
 import mlflow.sklearn
 import pandas as pd
-from mlflow.models import infer_signature
 from sklearn.cluster import KMeans
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.pipeline import make_pipeline
@@ -449,7 +448,7 @@ def run_experiment():
 
     # Run padre para agrupar la búsqueda; cada candidato es un child run.
     candidate_results = []
-    with mlflow.start_run(run_name="P3_hyperparameter_search") as parent_run:
+    with mlflow.start_run(run_name="P3_hyperparameter_search"):
         mlflow.set_tags(
             {
                 "team": EXPERIMENT_NAME,
@@ -480,13 +479,13 @@ def run_experiment():
 
         # Selección orientativa: mayor Silhouette; desempate con menor
         # Davies-Bouldin. Inertia se reporta, pero no se compara sola entre K.
-        best = sorted(
+        best = min(
             candidate_results,
             key=lambda item: (
                 -item["silhouette_score"],
                 item["davies_bouldin_index"],
             ),
-        )[0]
+        )
 
         mlflow.log_metrics(
             {

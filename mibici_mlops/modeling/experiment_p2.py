@@ -6,28 +6,26 @@ Módulos de carga de datos, partición estratificada 80/20
 y configuración de la infraestructura de MLflow Tracking.
 """
 
-import os
 import hashlib
-import json
+import os
+from pathlib import Path
 import subprocess
 import time
-from pathlib import Path
 
+import matplotlib.pyplot as plt
 import mlflow
-import mlflow.sklearn
 from mlflow.models import infer_signature
+import mlflow.sklearn
 import numpy as np
 import pandas as pd
 import polars as pl
-import matplotlib.pyplot as plt
-
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
+    ConfusionMatrixDisplay,
     accuracy_score,
+    confusion_matrix,
     f1_score,
     roc_auc_score,
-    confusion_matrix,
-    ConfusionMatrixDisplay,
 )
 from sklearn.model_selection import train_test_split
 
@@ -244,7 +242,7 @@ def main():
     configure_mlflow()
     X_train, X_test, y_train, y_test, data_version = prepare_data()
     X_fit, X_val, y_fit, y_val = prepare_validation(X_train, y_train)
-    best_config, search_results = search_hyperparameters(X_fit, y_fit, X_val, y_val, data_version)
+    search_hyperparameters(X_fit, y_fit, X_val, y_val, data_version)
     evaluate_final_candidates(X_train, y_train, X_test, y_test, data_version)
     print("\nEjecución del experimento P2 finalizada correctamente.")
 

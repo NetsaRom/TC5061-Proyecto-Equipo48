@@ -67,7 +67,7 @@ def test_load_with_default_tracking_uri(monkeypatch):
     service.load()
 
     assert len(tracking_uris) == 1
-    assert tracking_uris[0].endswith("/mlflow.db")
+    assert tracking_uris[0].replace("\\", "/").endswith("/mlflow.db")
 
 
 def test_is_loaded_initially_false():
