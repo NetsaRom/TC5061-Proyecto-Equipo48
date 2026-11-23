@@ -1467,6 +1467,44 @@ La API queda disponible en `http://localhost:8000` y el tracking server en
 la verificación de comunicación API–MLflow y los comandos de diagnóstico en
 [la guía de Docker Compose](docs/docker-compose-orchestration.md).
 
+## Integración continua con GitHub Actions
+
+El proyecto implementa un pipeline de integración continua (CI) mediante
+GitHub Actions, definido en:
+
+`.github/workflows/ci.yml`
+
+El workflow se ejecuta automáticamente cuando se realiza:
+
+- Un `push` al repositorio.
+- Un `pull request`.
+
+También puede ejecutarse manualmente desde GitHub:
+
+1. Abrir la pestaña **Actions** del repositorio.
+2. Seleccionar el workflow de CI.
+3. Seleccionar **Run workflow**.
+4. Elegir la rama correspondiente.
+5. Ejecutar **Run workflow**.
+
+El pipeline realiza las siguientes validaciones:
+
+1. Configuración del entorno con Python 3.11.
+2. Revisión de calidad del código con Ruff.
+3. Ejecución de pruebas automatizadas con Pytest.
+4. Construcción de las imágenes Docker.
+5. Levantamiento de la arquitectura mediante Docker Compose.
+6. Ejecución de pruebas End-to-End (E2E).
+
+El pipeline implementado corresponde actualmente a Integración Continua (CI):
+automatiza la validación, construcción y pruebas del sistema, pero no realiza
+un despliegue automático a un ambiente productivo.
+
+Para consultar la implementación y los resultados con mayor detalle:
+
+`docs/ci-cd-implementation.md`
+
+
 ## Pruebas de carga, monitoreo y optimización FinOps
 
 Se realizaron pruebas de carga con Locust sobre la API REST del modelo P2,
