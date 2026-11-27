@@ -1496,9 +1496,66 @@ El pipeline realiza las siguientes validaciones:
 5. Levantamiento de la arquitectura mediante Docker Compose.
 6. Ejecución de pruebas End-to-End (E2E).
 
-El pipeline implementado corresponde actualmente a Integración Continua (CI):
-automatiza la validación, construcción y pruebas del sistema, pero no realiza
-un despliegue automático a un ambiente productivo.
+### Integración y Entrega Continua (CI/CD)
+
+El pipeline implementa Integración Continua (CI) y Entrega Continua
+(Continuous Delivery) mediante GitHub Actions.
+
+Después de superar las pruebas de calidad, integración y E2E,
+la imagen Docker validada se publica automáticamente en GitHub
+Container Registry (GHCR) desde la rama main.
+
+La imagen se versiona utilizando el SHA completo del commit.
+
+**Imagen publicada y validada:**
+
+`ghcr.io/netsarom/tc5061-proyecto-equipo48:64ffbd4d6274ba566183b21d84a10cbefff75be4`
+
+La publicación reutiliza la imagen previamente validada,
+sin reconstruirla durante la etapa de entrega.
+
+El sistema implementa Continuous Delivery, pero no Continuous
+Deployment hacia un ambiente productivo permanente.
+
+### Integración reproducible con MLflow Model Registry
+
+La arquitectura actual de Docker Compose incorpora cuatro servicios:
+
+- mlflow: servidor de Tracking y Model Registry.
+- model-init: inicialización y recuperación del modelo P2.
+- model-serving: servicio de inferencia desde Model Registry.
+- api: interfaz REST mediante FastAPI.
+
+El modelo utilizado por la arquitectura reproducible se carga desde:
+
+`models:/mibici-equipo48-p2-riesgo@recovered`
+
+El alias recovered identifica el artefacto recuperado del repositorio,
+cuya integridad se verificó mediante SHA-256 y equivalencia de
+predicciones sobre cinco registros sintéticos.
+
+El alias champion descrito en secciones anteriores corresponde
+al registro histórico del equipo. No fue posible recuperar completamente
+su linaje original, por lo que no se certifica que ambos modelos sean
+la misma versión entrenada.
+
+La recuperación no implica un nuevo entrenamiento ni una promoción
+automática a producción.
+
+### Ejecución del sistema
+
+    docker compose up --build -d --wait --wait-timeout 180
+
+En macOS, si el puerto 5000 está ocupado:
+
+    MLFLOW_PORT=5002 docker compose up --build -d --wait --wait-timeout 180
+
+### Documentación del modelo
+
+Consultar la [Model Card del modelo P2](docs/model_card_p2.md)
+para conocer sus características, validaciones, monitoreo,
+trazabilidad y limitaciones.
+
 
 Para consultar la implementación y los resultados con mayor detalle:
 

@@ -327,6 +327,7 @@ por la detección de Data Drift.
 - FinOps: evidencia verificada.
 - Evaluación A/B offline: documentada.
 - Linaje completo: pendiente.
+- Continuous Delivery: implementada y validada en GHCR.
 - Continuous Deployment: pendiente.
 
 ## 19. Referencias internas
@@ -401,3 +402,37 @@ FastAPI communicates with MLflow Model Serving for inference.
 - API version metadata remains statically configured.
 - Persistent production CD has not yet been implemented.
 
+## 22. Continuous Integration and Delivery
+
+The CI/CD pipeline uses GitHub Actions to validate and publish
+the P2 Docker runtime image.
+
+### Validation and delivery process
+
+1. Code quality validation with Ruff.
+2. Automated tests with Pytest.
+3. Docker image build.
+4. Docker Compose integration.
+5. End-to-end API tests.
+6. Transfer of the validated Docker image.
+7. Publication to GitHub Container Registry (GHCR).
+
+### Verified delivery evidence
+
+- Pull Request: #39.
+- Workflow run: #22.
+- Commit: 64ffbd4d6274ba566183b21d84a10cbefff75be4.
+- Registry: GitHub Container Registry.
+- Image: ghcr.io/netsarom/tc5061-proyecto-equipo48.
+- Versioning strategy: full Git commit SHA.
+- Remote image availability: PASSED.
+
+### Limitations
+
+- Continuous Delivery is implemented and validated.
+- Automatic deployment to a permanent production environment
+  is not implemented.
+- The published image is the same image validated by E2E tests.
+- Image availability does not certify production readiness.
+- Historical training lineage remains unavailable.
+- Automatic model promotion is not implemented.

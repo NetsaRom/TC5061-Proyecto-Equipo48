@@ -298,5 +298,53 @@ Con esta implementación se fortalece el proceso de desarrollo colaborativo y se
 
 
 
-\*\*Nota de alcance:\*\* esta implementación cubre Integración Continua (CI), construcción de contenedores y pruebas de integración. No incluye todavía una etapa de despliegue automático a producción (CD).
+**Nota de alcance:** esta implementación cubre Integración Continua (CI) y Entrega Continua (Continuous Delivery). No incluye despliegue automático hacia un ambiente productivo permanente.
 
+
+## Continuous Delivery con GitHub Container Registry
+
+La etapa de entrega continua se ejecuta cuando los cambios
+llegan a la rama main y las validaciones anteriores son exitosas.
+
+### Flujo automatizado
+
+1. Validación de calidad mediante Ruff.
+2. Ejecución de pruebas automatizadas.
+3. Construcción de la imagen Docker.
+4. Validación de servicios mediante Docker Compose.
+5. Ejecución de pruebas End-to-End.
+6. Transferencia de la imagen validada mediante GitHub Actions Artifacts.
+7. Autenticación en GHCR mediante GITHUB_TOKEN.
+8. Etiquetado de la imagen con el SHA completo del commit.
+9. Publicación automática en GHCR.
+
+### Evidencia de ejecución
+
+- Pull Request: #39.
+- Workflow run: #22.
+- Commit: 64ffbd4d6274ba566183b21d84a10cbefff75be4.
+- Validaciones de calidad: exitosas.
+- Integración Docker y E2E: exitosas.
+- Publicación en GHCR: exitosa.
+- Disponibilidad remota de la imagen: verificada.
+
+### Imagen publicada
+
+`ghcr.io/netsarom/tc5061-proyecto-equipo48:64ffbd4d6274ba566183b21d84a10cbefff75be4`
+
+### Beneficios
+
+- Entrega automatizada de artefactos.
+- Trazabilidad entre código e imagen Docker.
+- Publicación de la misma imagen validada.
+- Reducción de intervenciones manuales.
+- Separación entre validación y entrega.
+
+### Limitaciones
+
+- No existe despliegue automático a producción.
+- No existe promoción automática de modelos.
+- La disponibilidad de la imagen no certifica su preparación
+  para un entorno productivo.
+- Las advertencias de deprecación de Node.js 20 en GitHub
+  Actions requieren mantenimiento futuro.
