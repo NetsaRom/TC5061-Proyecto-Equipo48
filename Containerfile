@@ -14,3 +14,4 @@ COPY models/p2/ ./models/p2/
 EXPOSE 8000
 
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY bootstrap_p2_registry.py /app/bootstrap_p2_registry.py
