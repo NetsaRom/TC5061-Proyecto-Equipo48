@@ -352,3 +352,52 @@ Fecha de elaboración: 26 de noviembre de 2026.
 Estado: documentación técnica para revisión
 y entrega académica.
 
+
+## 21. Model Registry Recovery and Deployment Integration
+
+### Model registration
+
+- Registered model: mibici-equipo48-p2-riesgo
+- Registered version: 1
+- Alias: recovered
+- Experiment: P2_Model_Recovery
+- Recovery run ID: f57edef9bffc4e81ba08ca0c45a46c92
+- Original artifact run ID: 0766e362faf644129dd54d9a2993380c
+- Retraining performed: No
+- Model SHA-256:
+  9e49ebd8bf74acb9e2ebcee89dec2cd6ab4495023af7febd9c4bad4d6b25480b
+
+### Validation results
+
+| Validation | Result |
+|---|---|
+| Model registration | PASSED |
+| SHA-256 integrity | PASSED |
+| Prediction equivalence | 5/5 identical |
+| Registry bootstrap with existing alias | PASSED |
+| Registry bootstrap with fresh volume | PASSED |
+| Docker Compose integration | PASSED |
+| End-to-end API tests | 5/5 PASSED |
+| Independent deployment inference | PASSED |
+
+### Deployment architecture
+
+Docker Compose initializes MLflow Tracking and Model Registry.
+The model-init service registers or validates the packaged model.
+Model Serving loads the model using:
+
+models:/mibici-equipo48-p2-riesgo@recovered
+
+FastAPI communicates with MLflow Model Serving for inference.
+
+### Limitations
+
+- Original training lineage could not be recovered.
+- The recovery run does not represent a training experiment.
+- Historical training metrics were not recreated.
+- The recovered alias does not certify champion status.
+- Prediction equivalence was evaluated on five synthetic records.
+- Shared artifact storage requires write permissions in this setup.
+- API version metadata remains statically configured.
+- Persistent production CD has not yet been implemented.
+

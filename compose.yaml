@@ -39,6 +39,23 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  model-init:
+    image: mibici-p2-runtime:local
+    build:
+      context: .
+      dockerfile: Containerfile
+    command: ["python", "/app/bootstrap_p2_registry.py"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - mlflow_data:/mlflow
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    networks:
+      - mibici-network
+    restart: "no"
+
   model-serving:
     image: mibici-p2-runtime:local
     build:
@@ -49,7 +66,7 @@ services:
       - models
       - serve
       - --model-uri
-      - /app/models/p2
+      - "models:/mibici-equipo48-p2-riesgo@recovered"
       - --host
       - 0.0.0.0
       - --port
@@ -58,9 +75,13 @@ services:
       - local
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - mlflow_data:/mlflow
     depends_on:
       mlflow:
         condition: service_healthy
+      model-init:
+        condition: service_completed_successfully
     networks:
       - mibici-network
     healthcheck:
